@@ -1,6 +1,6 @@
 # AUDIT — Performance, Efficacité & Sécurité
 
-Date : 2026-06-10 · Version auditée : **1.9.47** · Périmètre : `extension/` complet
+Date : 2026-06-10 · Version auditée : **1.9.47** (audit historique — version courante : voir `CHANGELOG.md`) · Périmètre : `extension/` complet
 Légende : 🔴 fort impact · 🟠 moyen · 🟡 faible · 🟢 OK
 
 > **STATUT 2026-06-10 (v1.9.48) — corrections appliquées :**

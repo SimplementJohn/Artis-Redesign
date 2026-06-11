@@ -1,7 +1,9 @@
 # NEW.md — Audit fonctionnalités & idées d'ajouts
 
-Date : 2026-06-10 · Version : 1.9.47
-Basé sur l'existant : thème dark/light, Gilles (chat + mémoire pages + Reformuler CR), notifications DIT, emojis planning, loader custom, popup réglages.
+Date : 2026-06-10 (maj 2026-06-11) · Version : 2.0.0
+Basé sur l'existant : thème dark/light, Gilles (chat + mémoire pages + Reformuler CR), notifications DIT, emojis planning, loader custom, popup + page paramètres.
+
+> Réalisé depuis : sélecteur de modèle (page paramètres), mémoire de conversation réglable 5–30, menu navigation en popup flottant, préprompts en fichiers .md, avatar Gilles, page paramètres accessible. Multi-provider (GPT/Claude/DAI) → [issue #5](https://github.com/SimplementJohn/Artis-Redesign/issues/5).
 
 Légende : 💪 effort (F=faible, M=moyen, G=gros) · 🎯 impact estimé sur ton usage quotidien
 
