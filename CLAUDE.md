@@ -27,6 +27,7 @@ Dès qu'un nouvel élément est traité, tenir ce CLAUDE.md à jour automatiquem
 - **Nouveau piège/comportement** → section « Pièges connus ».
 - Convertir dates relatives en absolues. Pas de doublons : mettre à jour la ligne existante plutôt que dupliquer.
 - **À chaque patch/modif visuelle** : incrémenter `ARTIS_VERSION` (`app-content.js`) + `manifest.json version` (synchros) ET ajouter une entrée en tête de **`CHANGELOG.md`** (racine repo — le journal n'est plus dans le JS depuis v1.9.48). Le bouton Version sidebar `#artis-version-btn` ouvre le repo GitHub.
+- **Versioning sémantique (depuis v2.0.0)** : `MAJEUR.MINEUR.PATCH` — petite modif/fix = patch (`2.0.1`), modif moyenne / nouvelle fonctionnalité = mineur (`2.1.0`), grosse refonte / rupture = majeur (`3.0.0`). Release GitHub taguée `vX.Y.Z` pour les versions marquantes.
 
 ---
 

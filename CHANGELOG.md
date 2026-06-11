@@ -3,7 +3,10 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
-## 1.9.58 — 2026-06-11
+## 2.0.0 — 2026-06-11
+
+> Passage en versioning sémantique : MAJEUR.MINEUR.PATCH (grosse refonte = 3.0.0, modif moyenne = 2.1.0, petite modif/fix = 2.0.1).
+
 - Gilles : préprompts spécifiques Digithall (`GILLES.md`, `GILLES_REFORM.md`) gitignorés ; modèles génériques publiés (`GILLES.example.md`, `GILLES_REFORM.example.md`) utilisés en fallback si les spécifiques absents (le spécifique prime toujours)
 - Gilles : réponses plus jamais tronquées en plein mot — `maxOutputTokens` 1024→8192 + `thinkingBudget: 0` (les tokens de réflexion des modèles 2.5 mangeaient le budget de sortie → `MAX_TOKENS`)
 - Popup : simplifiée — thème (Sombre/Auto/Clair, icônes SVG) + bouton « Paramètres avancés » uniquement ; master switch, Gilles, partage pages, notifs, clé API, état API → page paramètres
