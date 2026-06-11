@@ -424,7 +424,9 @@ Partout où Artis utilise son bleu (`#00AEEF`, `bg-artis-default-color`, `text-a
 | `extension/artis.txt` + `knowledge/` + `knowledge-index.json` | Base de connaissance : seed + 93 fichiers doc, récupération ciblée par question via l'index |
 | `extension/apigemini.txt` | Clé API Gemini (gitignored, non web-accessible) — à EXCLURE de tout build distribué |
 | `extension/fonts/` | Polices locales (Plus Jakarta Sans, Space Grotesk, DM Sans — woff2) + `fonts.css` via manifest. Aucune requête Google Fonts |
-| `extension/popup.html/.css/.js` | Popup : sliders (thème, sombre, Gilles, partage pages, notifs, version) + clé API + pastille état API |
+| `extension/popup.html/.css/.js` | Popup MINIMALE (v2.0.0) : thème (sombre/auto/clair) + bouton « Paramètres avancés » — tout le reste vit sur la page options |
+| `extension/options.html/.css/.js` | Page paramètres (onglet Chrome) : master switch, Gilles, partage pages, mémoire 5–30, clé API, modèle, notifs, intervalle DIT, export/import/reset, changelog — accessible (16px, focus, clavier) |
+| `SCREENSHOTS/` | Captures pour le README (login, accueil, planning dark/light, popup, paramètres) |
 | `sync-knowledge.ps1` | Re-copie `datatxt/*` → `extension/` (maj connaissance) |
 
 ### Gilles — assistant IA
