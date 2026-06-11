@@ -3,16 +3,24 @@ const $ = id => document.getElementById(id);
 const STORAGE_KEYS = [
   'artis_enabled', 'artis_theme_mode', 'artis_version_btn',
   'giles_enabled', 'giles_page_share', 'giles_api_key', 'giles_model_pref',
-  'notif_enabled', 'dit_interval'
+  'notif_enabled', 'dit_interval', 'giles_mem_limit'
 ];
 
 /* ── Navigation ── */
 document.querySelectorAll('.opt-nav-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.opt-nav-item').forEach(i => i.classList.remove('active'));
+  const select = () => {
+    document.querySelectorAll('.opt-nav-item').forEach(i => {
+      i.classList.remove('active');
+      i.setAttribute('aria-selected', 'false');
+    });
     document.querySelectorAll('.opt-section').forEach(s => s.classList.remove('active'));
     item.classList.add('active');
+    item.setAttribute('aria-selected', 'true');
     $('sec-' + item.dataset.section).classList.add('active');
+  };
+  item.addEventListener('click', select);
+  item.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); }
   });
 });
 
@@ -25,7 +33,7 @@ try {
 
 /* ── Mode thème ── */
 const MODE_BTNS = Array.from(document.querySelectorAll('#opt-mode button'));
-let themeMode = 'dark';
+let themeMode = 'light';
 
 function paintMode() {
   MODE_BTNS.forEach(b => b.classList.toggle('active', b.dataset.mode === themeMode));
@@ -45,8 +53,8 @@ chrome.storage.local.get(STORAGE_KEYS, s => {
   $('opt-version').checked = s.artis_version_btn !== false;
   $('opt-giles').checked   = s.giles_enabled !== false;
   $('opt-pages').checked   = s.giles_page_share !== false;
-  $('opt-notif').checked   = s.notif_enabled === true;
-  themeMode = s.artis_theme_mode || (s.artis_dark === false ? 'light' : 'dark');
+  $('opt-notif').checked   = s.notif_enabled !== false;   /* défaut activé (v1.9.58) */
+  themeMode = s.artis_theme_mode || (s.artis_dark === true ? 'dark' : 'light');
   paintMode();
 
   if (s.giles_api_key) $('opt-key').placeholder = 'Clé personnalisée enregistrée ✓';
@@ -55,6 +63,19 @@ chrome.storage.local.get(STORAGE_KEYS, s => {
   const interval = s.dit_interval || 60;
   $('opt-dit-interval').value = interval;
   $('opt-dit-interval-val').textContent = interval + ' s';
+
+  const mem = Math.min(30, Math.max(5, s.giles_mem_limit || 15));
+  $('opt-mem').value = mem;
+  $('opt-mem-val').textContent = mem + ' messages';
+});
+
+/* ── Mémoire conversation Gilles ── */
+$('opt-mem').addEventListener('input', e => {
+  $('opt-mem-val').textContent = e.target.value + ' messages';
+});
+$('opt-mem').addEventListener('change', e => {
+  chrome.storage.local.set({ giles_mem_limit: Number(e.target.value) });
+  toast('Mémoire enregistrée');
 });
 
 /* ── Toggles ── */

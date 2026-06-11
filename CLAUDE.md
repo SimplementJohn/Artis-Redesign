@@ -50,6 +50,7 @@ Base : `https://artis.digithall.org/ArtisWebDigitInvest/`
 | Login déconnecté | `composants/login/sso/loggedOut.action?typeLicence=BM` | Page après logout. | Même thème login |
 | Accueil / Visualiser entrée | `composants/commun/accueil/entreeVisualiser.action` | Page d'accueil (favoris, carte profil). Body flag JS `html.artis-page-entree`. | Bande vide aside-secondary masquée ; carte profil `#thumbnail` re-thémée ; tooltips z-index relevé |
 | Planning | `composants/ccPlanningV2/...` (page `body.page-ccPlanningV2`) | Planning emploi du temps. Blocs `.planning-event`. | Grille dark, blocs harmonisés + hover zoom |
+| Clients et Problèmes (DIT) | `composants/services/ccPlanningV2/entreeVisualiser.action` | Liste DIT + planning, suivi `startDitMonitor()` (autoreload 60 s + notifs). Matche la regex planning (`ccPlanningV2`) mais PAS le tag accueil. | Flyout transparent corrigé v1.9.57 (ne reçoit plus `artis-page-entree`) ; blocs clairs préservés en thème clair |
 | Workflow Manager | `composants/workflow/ccWorkflowManager/submit.action` | Tâches/workflow, gros tableaux. | Tables dark, boutons toolbar dark |
 | Mon compte | `composants/commun/navigation/redirect_ccMonCompte.action` | Profil utilisateur (lien depuis carte `#thumbnail`). | — |
 | Saisie CRIT / compte rendu | `composants/services/ccCrit/entreeAjouter.action` | Saisie compte rendu intervention. Éditeur TinyMCE inline `#ita_messclt` (« Commentaire pour le client »). Bloc détail DIT `#s_detail_dit > .card-body` (Client/Site/Demandeur/dates/Détail). | Bouton Reformuler (Gilles) DANS la toolbar TinyMCE + lit le contexte DIT (v1.9.45) ; toolbar dark intégrée au bandeau (v1.9.44) |
@@ -67,9 +68,10 @@ L'utilisateur décrit les éléments en langage courant + donne souvent un **XPa
 | « bandeau de gauche » / « menu de gauche » (icônes) | Sidebar verticale icônes | `.aside-primary` / `.bg-artis-default-color` |
 | « le menu où il y a le bouton theme » | Zone icônes nav sidebar | `#kt_aside_nav` (= `.aside-primary > div:nth-child(3)`) |
 | « bouton theme » / « lune » / « soleil » | Toggle dark/light injecté | `#artis-theme-toggle` (cloné depuis `.aside-item-btn`) |
+| « bouton menu » (grille, comme Gilles) | Bouton injecté ouvrant le POPUP menu au survol | `#artis-menu-btn` (1re icône nav) → pose `html.artis-menu-open` ; ouvre `#artis-menu-popup` (body-level, fixed 330px) qui contient le `#kt_aside_workspace` natif DÉPLACÉ (v1.9.58) — `.aside-secondary` = coquille vide |
 | « volet déroulant » / « volet avec la barre de recherche » | Panel flyout menu | `.aside-secondary` (overlay absolu, anchored via `--artis-primary-w`) |
 | « barre de recherche » (Ctrl+K) | Bouton recherche globale | `.global-search-button-shortcut` |
-| « menus Services / Biens / Logistique » | Items menu nav | `.menu-item` > `.menu-link` > `.menu-title` (sous-menus `.menu-sub-accordion`) |
+| « menus Services / Biens / Logistique » | Items menu nav | `.menu-item` > `.menu-link` > `.menu-title` ; sous-menus `.menu-sub-accordion` = **popup flottant au survol** (`position:absolute; left:100%`, v1.9.58 — plus d'accordéon, zéro décalage) |
 | « blocs de RDV » / « blocs emploi du temps » / « blocs de dit » | Événements planning colorés | `.planning-event` > `.panel-planning` (couleur inline par nature/type) |
 | « label / badge type » sur un bloc | Étiquette nature | `.label.label-nature` |
 | « le tableau » / « tableau vide » | Grilles de données | `table` / `.dataTable` / `.array-content table` (empty = `.dataTables_empty`) |
@@ -100,15 +102,17 @@ L'utilisateur décrit les éléments en langage courant + donne souvent un **XPa
 - Ces menus n'ont pas toujours `.dropdown-menu` → couvrir aussi `.popover`, `.tippy-box`, `.ui-menu`, `[role="listbox/menu"]`.
 
 ### Pièges connus
-- `.aside-secondary` : **flottant partout** depuis v1.9.52 — `position:absolute` (pages standard) / `position:fixed` pleine hauteur (planning, indépendant de la hauteur du parent `.aside` → ne dépasse plus derrière le contenu, piège historique v1.9.14). Le docké `relative` sur planning provoquait un **reflow brutal** du planning à chaque ouverture. Même flyout fluide au survol sur toutes les pages.
+- `.aside-secondary` : depuis v1.9.58 c'est une **coquille vide** — son contenu `#kt_aside_workspace` est déplacé dans le popup body-level `#artis-menu-popup` (ouvert au survol de `#artis-menu-btn` via `html.artis-menu-open`, JS app-content). Le volet reste glissé hors écran (`translateX(-100%)`), display intact (règle ERROR.md). Historique : flottant absolute/fixed v1.9.52, ouverture `.aside:hover` retirée v1.9.58.
 - Tables vides → l'élément `<table>` doit avoir fond dark explicite (cellules transparentes laissent voir wrapper blanc).
 - Blocs planning : couleurs Artis = **données métier** (nature/type) → ne pas aplatir, juste harmoniser (saturation/glow/voile).
-- Metronic toggle les sous-menus via classes `.show/.here/.hover` → animer avec `grid-template-rows 0fr→1fr`.
+- Metronic toggle les sous-menus via classes `.show/.here/.hover` → depuis v1.9.58 ces classes sont sans effet visuel : ouverture pilotée par `:hover` (popup `opacity/visibility`, jamais `display`). `.aside-secondary` est en `overflow:visible` pour laisser sortir les popups.
 - Polices locales : tout `.woff2` chargé par la page doit être dans `web_accessible_resources` du manifest (`fonts/*.woff2`), sinon bloqué.
 - Permission `tabs` retirée (v1.9.43) : `tabs.query({url})` marche via la host permission `artis.digithall.org` ; `reload/update` n'ont jamais eu besoin de permission.
 - MutationObserver (app-content) : traitement batché par frame + `disconnect()` pendant nos écritures — ne pas remettre de strip synchrone dans le callback (boucle de rétroaction).
 - Éléments `position: sticky` (ex `.page-data-header.sticky-top`) : le strip global de fonds les rend **transparents** → contenu visible derrière au scroll. Tout sticky doit recevoir un fond dark **opaque** explicite.
 - Toolbar TinyMCE inline : créée **au premier focus** de l'éditeur (pas au load) → tout bouton injecté dedans n'apparaît qu'après clic dans la zone de texte. Sur un bouton custom dans la barre : `mousedown → preventDefault()` obligatoire, sinon blur de l'éditeur = TinyMCE cache la barre avant le `click`.
+- Thème clair (v1.9.57) : **zéro recolor** — canvas, nuclear CSS, strips (`initialSweep`, observer) ne tournent QU'EN sombre. La classe `artis-light` est posée en **tout début d'init** (`applyThemePreference()`) pour que `isLightTheme()` soit fiable partout. Toggle theme sidebar = `location.reload()` (un switch live laisse un état mixte). Boutons injectés sidebar = blanc en clair.
+- `tagPage()` : regex par CHEMIN complet (`accueil/entreeVisualiser`), jamais par nom d'action seul — `entreeVisualiser.action` existe dans `commun/accueil` ET `services/ccPlanningV2`.
 
 ---
 
@@ -413,7 +417,9 @@ Partout où Artis utilise son bleu (`#00AEEF`, `bg-artis-default-color`, `text-a
 | `extension/giles.js` | Gilles : UI pop-up IA (chat, mémoire 5, onglet Conversations, capture pages) |
 | `extension/giles.css` | Gilles : styles (glass, light mode, responsive) |
 | `extension/giles-bg.js` | Service worker : appels Gemini (fallback multi-modèles), clé, base de connaissance, notifications |
-| `extension/prompts/giles-system-prompt.txt` | Préprompt système de Gilles |
+| `extension/GILLES.md` | Préprompt système de Gilles — SPÉCIFIQUE Digithall, **gitignoré** ; prime sur le générique |
+| `extension/GILLES_REFORM.md` | Préprompt bouton Reformuler (CR) — SPÉCIFIQUE Digithall, **gitignoré** ; chargé via `systemPreset:'reform'` |
+| `extension/GILLES.example.md` + `GILLES_REFORM.example.md` | Modèles GÉNÉRIQUES publiés sur GitHub — fallback si les fichiers spécifiques absents |
 | `extension/artis.txt` + `knowledge/` + `knowledge-index.json` | Base de connaissance : seed + 93 fichiers doc, récupération ciblée par question via l'index |
 | `extension/apigemini.txt` | Clé API Gemini (gitignored, non web-accessible) — à EXCLURE de tout build distribué |
 | `extension/fonts/` | Polices locales (Plus Jakarta Sans, Space Grotesk, DM Sans — woff2) + `fonts.css` via manifest. Aucune requête Google Fonts |
@@ -426,10 +432,10 @@ Partout où Artis utilise son bleu (`#00AEEF`, `bg-artis-default-color`, `text-a
 - **Clé API** : `chrome.storage.local['giles_api_key']` (popup) sinon parsée depuis `apigemini.txt`.
 - **Connaissance** : `artis.txt` (seed) + fichiers `knowledge/` sélectionnés par scoring de la question via `knowledge-index.json` — budget 50k chars, le tout en `systemInstruction` avec le préprompt.
 - **Pages visitées** : capture `innerText` live mémoïsée (TTL 4s), sessionStorage, budget 40k chars, URLs sanitizées (`session/cKey/cStatus=***`). Toggle popup « Partage pages ».
-- **Mémoire active** : 5 derniers messages ; vidée à chaque rechargement complet (sessionStorage).
+- **Mémoire active** : réglable 5–30 messages (défaut 15, slider page paramètres, clé `giles_mem_limit`) ; vidée à chaque rechargement complet (sessionStorage).
 - **Conversations** : `localStorage['giles_conversations']` (PC uniquement), purge TTL 30 j. Onglet : voir / supprimer / tout vider.
 - **Slider on/off** : popup écrit `artis_enabled` / `giles_enabled` ; bascule thème = `location.reload()`.
-- **Reformuler (CR)** : `app-content.js` envoie `GILLES_ASK` avec `systemOverride` (prompt CR dédié) via port long-lived `gilles-ask` ; contexte DIT lu par `getDitContext()`.
+- **Reformuler (CR)** : `app-content.js` envoie `GILLES_ASK` avec `systemPreset:'reform'` via port long-lived `gilles-ask` → giles-bg charge `GILLES_REFORM.md` ; contexte DIT lu par `getDitContext()`.
 
 ### ⚠️ Lecture disque
 

@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  const MEM_LIMIT      = 5;                       // messages gardés en mémoire active
+  let MEM_LIMIT        = 15;                      // messages envoyés en contexte (réglable 5-30, options)
   const SS_ACTIVE      = 'giles_active';          // sessionStorage : conversation en cours
   const LS_CONVOS      = 'giles_conversations';   // localStorage : historique
   const SS_PAGES       = 'giles_pages';           // sessionStorage : mémoire des pages visitées (vidée à la fermeture/reload session)
@@ -163,7 +163,7 @@
       <section id="giles-panel" role="dialog" aria-label="Assistant Gilles" aria-hidden="true">
         <header class="giles-head">
           <div class="giles-id">
-            <div class="giles-ava">${ICON_CHAT}</div>
+            <div class="giles-ava"><img src="${chrome.runtime.getURL('gilles.png')}" alt="Gilles"></div>
             <div>
               <div class="giles-name">Gilles</div>
               <div class="giles-status" id="giles-status">
@@ -172,7 +172,10 @@
               </div>
             </div>
           </div>
-          <button id="giles-close" aria-label="Fermer">&times;</button>
+          <div class="giles-head-actions">
+            <button id="giles-reset" aria-label="Réinitialiser la conversation" title="Réinitialiser la conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+            <button id="giles-close" aria-label="Fermer">&times;</button>
+          </div>
         </header>
 
         <nav class="giles-tabs">
@@ -214,6 +217,11 @@
 
     /* Events (ouverture via le bouton sidebar #giles-aside-btn — plus de FAB flottant) */
     root.querySelector('#giles-close').addEventListener('click', () => openPanel(false));
+    root.querySelector('#giles-reset').addEventListener('click', () => {
+      resetActive();
+      renderWelcome();
+      switchTab('chat');
+    });
     root.querySelector('#giles-form').addEventListener('submit', onSubmit);
     root.querySelectorAll('.giles-tab').forEach(t =>
       t.addEventListener('click', () => switchTab(t.dataset.tab)));
@@ -585,8 +593,16 @@
   }
 
   /* Réagit aux changements du slider (popup) sans recharger */
+  /* Mémoire de conversation réglable (options) */
+  chrome.storage.local.get('giles_mem_limit', s => {
+    if (s && s.giles_mem_limit) MEM_LIMIT = Math.min(30, Math.max(5, s.giles_mem_limit));
+  });
+
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
+    if ('giles_mem_limit' in changes) {
+      MEM_LIMIT = Math.min(30, Math.max(5, changes.giles_mem_limit.newValue || 15));
+    }
     if ('artis_enabled' in changes || 'giles_enabled' in changes) applyEnabled();
     if ('giles_page_share' in changes) {
       pageShare = changes.giles_page_share.newValue !== false;

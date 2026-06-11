@@ -23,9 +23,38 @@ async function loadText(path) {
   }
 }
 
+/* Préprompt : le fichier SPÉCIFIQUE (GILLES.md, gitignoré) prime ;
+   sinon fallback sur le modèle générique publié (GILLES.example.md). */
 async function getSystemPrompt() {
-  if (_systemPrompt === null) _systemPrompt = await loadText('prompts/giles-system-prompt.txt');
+  if (_systemPrompt === null) {
+    _systemPrompt = await loadText('GILLES.md');
+    if (!_systemPrompt) _systemPrompt = await loadText('GILLES.example.md');
+  }
   return _systemPrompt || 'Tu es Gilles, assistant du site Artis.';
+}
+
+/* Liens internes Artis connus et vérifiés (cf. CLAUDE.md « LIENS / PAGES UTILES ») */
+const ARTIS_LINKS = [
+  { label: 'Accueil',                       url: 'composants/commun/accueil/entreeVisualiser.action' },
+  { label: 'Planning',                      url: 'composants/ccPlanningV2/entreeVisualiser.action' },
+  { label: 'Clients et Problèmes (DIT)',    url: 'composants/services/ccPlanningV2/entreeVisualiser.action' },
+  { label: 'Workflow Manager',              url: 'composants/workflow/ccWorkflowManager/submit.action' },
+  { label: 'Saisie compte rendu (CRIT)',    url: 'composants/services/ccCrit/entreeAjouter.action' },
+  { label: 'Mon compte',                    url: 'composants/commun/navigation/redirect_ccMonCompte.action' },
+  { label: 'Aide en ligne Artis (externe)', url: 'https://portail.artis.fr/docs/5.0.5/index.html' },
+];
+
+/* Préprompts presets — exclusivement dans des fichiers .md bundlés */
+let _reformPrompt = null;
+async function getPresetPrompt(preset) {
+  if (preset === 'reform') {
+    if (_reformPrompt === null) {
+      _reformPrompt = await loadText('GILLES_REFORM.md');                          /* spécifique d'abord */
+      if (!_reformPrompt) _reformPrompt = await loadText('GILLES_REFORM.example.md'); /* sinon générique */
+    }
+    return _reformPrompt || null;
+  }
+  return null;
 }
 
 /* ── Base de connaissance avec RÉCUPÉRATION ciblée ───────────
@@ -155,7 +184,14 @@ async function callModel(model, key, systemText, contents) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemText }] },
         contents,
-        generationConfig: { temperature: 0.4, maxOutputTokens: 1024, topP: 0.95 },
+        /* 2.5 : les tokens de "thinking" comptent dans maxOutputTokens → budget
+           large + thinking coupé (modèles 2.5 uniquement, 400 sur les 2.x),
+           sinon réponse tronquée en plein mot (MAX_TOKENS) */
+        generationConfig: Object.assign(
+          { temperature: 0.4, maxOutputTokens: 8192, topP: 0.95 },
+          /^gemini-2\.5/.test(model) || /^flash/.test(model)
+            ? { thinkingConfig: { thinkingBudget: 0 } } : {}
+        ),
       }),
     });
   } catch (e) { return { ok: false, error: 'NETWORK' }; }
@@ -204,6 +240,22 @@ async function askGemini(history, pages, systemOverride) {
     const [sys, knowledge, mdls] = await Promise.all([getSystemPrompt(), getKnowledgeFor(query), getModels()]);
     models    = mdls;
     systemText = sys + '\n\n========================\nBASE DE CONNAISSANCE ARTIS\n========================\n' + knowledge;
+
+    /* Anti double présentation : le frontend affiche déjà le message
+       d'accueil de Gilles (hasGreeted) — il ne doit jamais se représenter. */
+    systemText += '\n\n========================\nPRÉSENTATION DÉJÀ FAITE\n========================\n'
+      + 'L\'utilisateur a DÉJÀ vu ton message de présentation dans l\'interface. '
+      + 'Ne te représente JAMAIS (pas de « Bonjour, je suis Gilles… »). '
+      + 'Sur un simple « salut » / « hey » / « bonjour », réponds naturellement et brièvement, '
+      + 'puis propose ton aide sur Artis.';
+
+    /* Liens Artis FIABLES — seuls liens internes autorisés (jamais inventer d'URL) */
+    systemText += '\n\n========================\nLIENS ARTIS FIABLES\n========================\n'
+      + 'Tu ne peux proposer QUE ces liens internes (relatifs à la base '
+      + 'https://artis.digithall.org/ArtisWebDigitInvest/) ou des liens présents '
+      + 'textuellement dans la base de connaissance / les pages visitées. '
+      + 'N\'invente JAMAIS une URL, un menu ou un bouton.\n'
+      + ARTIS_LINKS.map(l => `- ${l.label} : ${l.url}`).join('\n');
   }
 
   /* Mémoire locale des pages visitées (Planning + autres pages).
@@ -262,7 +314,7 @@ async function pingGemini() {
 async function notify(title, body, tag) {
   try {
     const s = await chrome.storage.local.get('notif_enabled');
-    if (s.notif_enabled !== true) return { ok: false, error: 'OFF' };
+    if (s.notif_enabled === false) return { ok: false, error: 'OFF' };  /* défaut activé (v1.9.58) */
     const id = (tag || 'artis') + '_' + Date.now();
     chrome.notifications.create(id, {
       type: 'basic',
@@ -318,9 +370,11 @@ chrome.tabs.onRemoved.addListener(tabId => { delete _pageStore[tabId]; });
 /* Port long-lived pour GILLES_ASK (évite le bug MV3 "message port closed") */
 chrome.runtime.onConnect.addListener(port => {
   if (port.name !== 'gilles-ask') return;
-  port.onMessage.addListener(msg => {
+  port.onMessage.addListener(async msg => {
     if (!msg || msg.type !== 'GILLES_ASK') return;
-    askGemini(msg.history, pagesForMessage(msg, port.sender), msg.systemOverride || null).then(resp => {
+    /* systemPreset (ex: 'reform') → préprompt chargé depuis son .md bundlé */
+    const override = msg.systemPreset ? await getPresetPrompt(msg.systemPreset) : (msg.systemOverride || null);
+    askGemini(msg.history, pagesForMessage(msg, port.sender), override).then(resp => {
       try { port.postMessage(resp); } catch (e) {}
     });
   });

@@ -1,9 +1,24 @@
 /* ============================================================
-   Artis App Enhancer v3 — CSS ciblé sur classes HTML réelles
+   Artis App Enhancer — CSS ciblé sur classes HTML réelles
    Source: Artis.net - Planning.html + composants.css
+
+   ARCHITECTURE (refonte thème clair v1.9.57) :
+   §1 BASE      — toujours actif (clair + sombre) : anti-saccade,
+                  police, structure/layout, animations, widgets
+                  injectés (toggle, version, Gilles, loader, changelog).
+                  AUCUN recolor des surfaces Artis ici.
+   §2 CLAIR     — html.artis-light : couleurs NATIVES Artis (zéro
+                  recolor). Bloc minimal.
+   §3 SOMBRE    — html:not(.artis-light) { … } (CSS nesting) :
+                  TOUT le theming couleur. Inactif en clair.
+   §4 KEYFRAMES — globaux (inertes sans animation associée).
    ============================================================ */
 
 /* Polices : bundlées en local (fonts/fonts.css via manifest) — plus de requête Google Fonts */
+
+/* ════════════════════════════════════════════════════════════
+   §1 BASE — TOUJOURS ACTIF (les 2 thèmes)
+   ════════════════════════════════════════════════════════════ */
 
 /* ── Anti-saccade reload : masque le contenu tant que le thème
    n'est pas appliqué, puis fade-in une fois prêt (.artis-ready).
@@ -15,332 +30,673 @@ html.artis-ready body { opacity: 1; transition: opacity 0.28s ease; }
 @keyframes artis-failsafe-reveal { to { opacity: 1; } }
 body { animation: artis-failsafe-reveal 0.01s linear 1.2s forwards; }
 
-/* ── Variables DARK (défaut) ──────────────────────────────── */
-:root,
-html:not(.artis-light) {
-  --a-bg:      #181836;
-  --a-s1:      #1e1e44;
-  --a-s2:      #23234e;
-  --a-s3:      #292957;
-  --a-border:  rgba(99,102,241,0.2);
-  --a-p:       #6366f1;
-  --a-p2:      #818cf8;
-  --a-text:    #e2e8f0;
-  --a-muted:   #94a3b8;
-  --a-green:   #10b981;
-  --a-blur:    blur(12px) saturate(140%);   /* 20px→12px : backdrop-filter très lourd GPU */
-  color-scheme: dark;
+/* ── Typo (identité visuelle, pas une couleur) ────────────── */
+html, body {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+}
+h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+
+/* ── Canvas background (créé par le JS UNIQUEMENT en sombre) ─ */
+#artis-app-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
 }
 
-/* ══════════════════════════════════════════════════════════
-   THEME CLAIR — Soft Indigo / Slate (propre & pro)
-   Canvas neutre, cards blanches, violet en accent uniquement
-   ══════════════════════════════════════════════════════════ */
-html.artis-light {
-  --a-bg:      #f6f7fb;   /* slate très clair, neutre */
-  --a-s1:      #ffffff;   /* surfaces blanches */
-  --a-s2:      #ffffff;
-  --a-s3:      #f1f3f9;
-  --a-border:  #e6e8f0;   /* bordure slate douce */
-  --a-p:       #6366f1;
-  --a-p2:      #4f46e5;
-  --a-text:    #1e293b;   /* slate-800 */
-  --a-muted:   #64748b;   /* slate-500 */
-  --a-green:   #059669;
-  --a-blur:    blur(12px) saturate(120%);
-  color-scheme: light;
+/* ── Sidebar : structure + animations (couleurs en §3) ─────── */
+.aside-item-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-html.artis-light,
-html.artis-light body {
-  background: var(--a-bg) !important;
-  color: var(--a-text) !important;
+/* Stagger entrée piloté par JS (une seule timeline pour TOUS les boutons,
+   natifs + injectés) → entrée parfaitement raccord, queue leu leu */
+.artis-stagger-init { opacity: 0 !important; }   /* état initial avant lancement */
+
+.artis-stagger-go {
+  animation: artis-aside-in 1.3s cubic-bezier(0.34,1.4,0.64,1) both !important;
 }
 
-/* ── Sidebar — indigo profond élégant ─────────────────────── */
-html.artis-light .aside-primary,
-html.artis-light .bg-artis-default-color {
-  background: linear-gradient(180deg, #4f46e5 0%, #4338ca 55%, #3730a3 100%) !important;
+/* Boutons icônes — taille/forme/transitions (fond/couleurs en §3) */
+.aside-primary .nav-link.btn.btn-icon {
+  border-radius: 10px !important;
+  transition:
+    background 0.32s cubic-bezier(0.22,1,0.36,1),
+    color 0.28s ease,
+    box-shadow 0.32s ease,
+    transform 0.22s cubic-bezier(0.22,1,0.36,1) !important;
+  margin: 3px 0 !important;
+  width: 44px !important;
+  height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+.aside-primary .nav-link.btn.btn-icon:hover {
+  transform: scale(1.08) !important;
+}
+
+/* ══ ASIDE SECONDARY — panel flyout (structure/déplacement) ══
+   Couleurs du panel en §3 ; en clair le fond blanc natif s'applique. */
+.aside-secondary {
+  /* FLOTTE par-dessus le contenu — ne pousse PAS le tableau */
+  position: absolute !important;
+  top: 0 !important;
+  left: var(--artis-primary-w, 70px) !important;  /* après la sidebar */
+  height: 100% !important;
+  z-index: 50 !important;
+  will-change: transform, opacity !important;
+  overflow: visible !important;   /* popups sous-menus sortent à droite (v1.9.58) */
+  /* État fermé par défaut : panel ENTIÈREMENT glissé à gauche (caché derrière
+     la sidebar grâce à son z-index plus élevé). Pur slide, pas de pop. */
+  transform: translateX(-100%) !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  transition: transform 0.5s cubic-bezier(0.22,1,0.36,1) !important;
+}
+
+/* Conteneur aside = référence de positionnement */
+.aside,
+.aside-extended { position: relative !important; }
+
+/* ── POPUP MENU dédié #artis-menu-popup (v1.9.58, style Gilles) ──
+   Le workspace natif (#kt_aside_workspace : recherche + tabs + menu) est
+   DÉPLACÉ en JS dans ce panneau flottant body-level — les handlers Artis
+   suivent le DOM. L'ancien volet .aside-secondary reste glissé/inactif
+   (coquille vide, on ne touche pas à son display). Ouverture au survol du
+   bouton #artis-menu-btn ou du popup (classe html.artis-menu-open). */
+#artis-menu-popup {
+  position: fixed !important;
+  top: 12px !important;
+  left: calc(var(--artis-primary-w, 70px) + 10px) !important;
+  width: 330px !important;
+  max-height: calc(100vh - 24px) !important;
+  z-index: 1050 !important;
+  border-radius: 16px !important;
+  padding: 10px 8px !important;
+  overflow: visible !important;            /* sous-menus popup sortent à droite */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-14px) scale(0.98);
+  transform-origin: left top;
+  transition:
+    transform 0.38s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.28s ease,
+    visibility 0s linear 0.28s;
+}
+html.artis-menu-open #artis-menu-popup {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0) scale(1);
+  transition:
+    transform 0.38s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.28s ease,
+    visibility 0s;
+}
+/* Habillage — dark glass / clair */
+html:not(.artis-light) #artis-menu-popup {
+  background: rgba(13,13,38,0.92) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(99,102,241,0.25) !important;
+  box-shadow: 12px 12px 48px rgba(0,0,0,0.6) !important;
+}
+html.artis-light #artis-menu-popup {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 12px 12px 40px rgba(15,23,42,0.18) !important;
+}
+/* Workspace déplacé : neutraliser fonds/largeurs hérités */
+#artis-menu-popup .aside-workspace,
+#artis-menu-popup .tab-content,
+#artis-menu-popup .tab-pane {
+  width: 100% !important;
+  background: transparent !important;
+  overflow: visible !important;
+}
+
+/* Cascade d'entrée du contenu */
+html.artis-menu-open #artis-menu-popup .global-search-button-container {
+  animation: artis-flyout-fade 0.55s cubic-bezier(0.16,1,0.3,1) 0.08s both !important;
+}
+html.artis-menu-open #artis-menu-popup .menu > .menu-item {
+  animation: artis-flyout-fade 0.55s cubic-bezier(0.16,1,0.3,1) both !important;
+}
+html.artis-menu-open #artis-menu-popup .menu > .menu-item:nth-child(1) { animation-delay: 0.10s !important; }
+html.artis-menu-open #artis-menu-popup .menu > .menu-item:nth-child(2) { animation-delay: 0.15s !important; }
+html.artis-menu-open #artis-menu-popup .menu > .menu-item:nth-child(3) { animation-delay: 0.20s !important; }
+html.artis-menu-open #artis-menu-popup .menu > .menu-item:nth-child(4) { animation-delay: 0.25s !important; }
+html.artis-menu-open #artis-menu-popup .menu > .menu-item:nth-child(n+5) { animation-delay: 0.30s !important; }
+
+/* La sidebar icônes masque l'ancien volet glissé en dessous */
+.aside-primary { position: relative !important; z-index: 60 !important; }
+
+/* Bouton menu actif pendant l'ouverture */
+html.artis-menu-open #artis-menu-btn {
+  color: #fff !important;
+  background: rgba(255,255,255,0.18) !important;
+  border-radius: 8px !important;
+}
+
+/* Bouton flèche de déroulement → retiré (le survol gère tout) */
+#kt_aside_toggle,
+.aside-toggle,
+.aside-secondary-toggle,
+.btn-aside-minimize,
+[data-kt-aside-minimize],
+[data-kt-toggle*="aside"] {
+  display: none !important;
+}
+
+.aside-workspace {
+  transition: opacity 0.3s ease !important;
+}
+
+/* Page planning : masquer la barre de recherche flottante */
+html.artis-page-planning .global-search-button-container,
+html.artis-page-planning .global-search-button-shortcut {
+  display: none !important;
+}
+
+/* Page planning : panel en overlay FIXED (pleine hauteur écran, au-dessus
+   du contenu) → le planning ne se redimensionne plus à l'ouverture (le
+   docké « relative » provoquait un reflow instantané et brutal). Le fixed
+   est indépendant de la hauteur du parent .aside → ne « dépasse » plus
+   derrière le contenu comme l'ancien absolute (piège v1.9.14).
+   Ouverture = même flyout fluide au survol que les autres pages. */
+html.artis-page-planning .aside-secondary {
+  position: fixed !important;
+  top: 0 !important;
+  left: var(--artis-primary-w, 70px) !important;
+  height: 100vh !important;
+  z-index: 50 !important;
+}
+html.artis-page-planning #kt_aside_workspace,
+html.artis-page-planning #kt_aside_workspace > div,
+html.artis-page-planning #kt_aside_workspace .tab-content {
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+/* Page entreeVisualiser : effacer la bande vide derrière le card favoris
+   (transparent + sans bordure/ombre, mais on garde le contenu visible) */
+html.artis-page-entree .aside-secondary {
+  background: transparent !important;
   border-right: none !important;
-  box-shadow: 1px 0 0 rgba(0,0,0,0.04), 3px 0 24px rgba(79,70,229,0.18) !important;
+  box-shadow: none !important;
+}
+html.artis-page-entree .aside-secondary .aside-workspace,
+html.artis-page-entree .aside-secondary .tab-content,
+html.artis-page-entree .aside-secondary .tab-pane:empty {
+  background: transparent !important;
 }
 
-html.artis-light .aside-primary .nav-link.btn.btn-icon {
-  color: rgba(255,255,255,0.7) !important;
-}
-html.artis-light .aside-primary .nav-link.btn.btn-icon:hover {
-  background: rgba(255,255,255,0.16) !important;
-  color: #fff !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15) !important;
-}
-html.artis-light .aside-primary .nav-link.btn.btn-icon.active {
-  background: rgba(255,255,255,0.95) !important;
-  color: #4338ca !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
-}
-html.artis-light .aside-primary svg,
-html.artis-light .aside-primary i {
-  color: rgba(255,255,255,0.7) !important;
-  fill: rgba(255,255,255,0.7) !important;
-}
-html.artis-light .aside-primary .nav-link.btn.btn-icon:hover svg,
-html.artis-light .aside-primary .nav-link.btn.btn-icon:hover i {
-  color: #fff !important; fill: #fff !important;
-}
-html.artis-light .aside-primary .nav-link.active svg,
-html.artis-light .aside-primary .nav-link.active i {
-  color: #4338ca !important; fill: #4338ca !important;
-}
-html.artis-light .aside-primary .badge {
-  background: #fbbf24 !important;
-  color: #78350f !important;
-  box-shadow: 0 2px 6px rgba(251,191,36,0.45) !important;
+/* Conteneur aside : largeur VERROUILLÉE sur la sidebar icônes.
+   Metronic élargit .aside au survol/état expanded → poussait légèrement
+   le contenu (planning) à l'ouverture du flyout. Le panel est
+   absolute/fixed → il n'a pas besoin que son parent s'élargisse. */
+.aside,
+.aside-extended {
+  width: var(--artis-primary-w, 70px) !important;
+  min-width: var(--artis-primary-w, 70px) !important;
+  max-width: var(--artis-primary-w, 70px) !important;
+  flex: 0 0 var(--artis-primary-w, 70px) !important;
+  transition: none !important;
 }
 
-/* ── Panel secondaire ─────────────────────────────────────── */
-html.artis-light .aside-secondary {
+/* ── Search bar (Ctrl+K) — structure/hover (couleurs §3) ──── */
+.global-search-button-shortcut {
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  transition:
+    background 0.32s cubic-bezier(0.22,1,0.36,1),
+    border-color 0.32s ease,
+    box-shadow 0.32s ease,
+    color 0.28s ease,
+    transform 0.22s cubic-bezier(0.22,1,0.36,1) !important;
+  font-size: 0.82rem !important;
+  text-decoration: none !important;
+}
+.global-search-button-shortcut:hover { transform: translateY(-1px) !important; }
+.global-search-button-shortcut:active { transform: translateY(0) scale(0.99) !important; }
+
+/* ── Menu : spacing + animations (couleurs §3) ─────────────── */
+:is(.aside-secondary, #artis-menu-popup) .menu > .menu-item,
+:is(.aside-secondary, #artis-menu-popup) .menu-column > .menu-item,
+:is(.aside-secondary, #artis-menu-popup) .menu-item {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Liens compacts collés les uns aux autres */
+:is(.aside-secondary, #artis-menu-popup) .menu-link {
+  margin: 1px 8px !important;
+  padding: 9px 12px !important;
+}
+
+/* Conteneur menu : pas de marge (Bootstrap my-5) → items à la queue leu leu */
+:is(.aside-secondary, #artis-menu-popup) .menu,
+:is(.aside-secondary, #artis-menu-popup) .menu-column,
+:is(.aside-secondary, #artis-menu-popup) .menu_ARTIS_NET,
+:is(.aside-secondary, #artis-menu-popup) [class*="menu_"] {
+  margin: 0 !important;
+}
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion { margin: 0 !important; }
+
+/* Lien menu — forme/disposition */
+.menu-link {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-decoration: none !important;
+}
+
+/* Titre menu */
+.menu-title {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+/* Icône menu */
+.menu-icon { transition: color 0.15s ease !important; }
+
+/* ── Sous-menus = POPUP flottant au survol (v1.9.58) ──────────
+   Plus d'accordéon : le sous-menu s'ouvre en panneau flottant à droite
+   de l'item parent → zéro décalage de layout dans le flyout.
+   On ne touche PAS au display d'Artis (règle ERROR.md) : ouverture pilotée
+   par opacity/visibility sur :hover, les classes .show de Metronic
+   deviennent sans effet visuel. */
+
+/* Le popup doit pouvoir sortir du panel → libérer le clipping interne */
+:is(.aside-secondary, #artis-menu-popup) .aside-workspace,
+:is(.aside-secondary, #artis-menu-popup) .tab-content,
+:is(.aside-secondary, #artis-menu-popup) .tab-pane,
+:is(.aside-secondary, #artis-menu-popup) .menu,
+:is(.aside-secondary, #artis-menu-popup) .menu-column {
+  overflow: visible !important;
+}
+
+/* Ancre de positionnement */
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion { position: relative !important; }
+
+:is(.aside-secondary, #artis-menu-popup) .menu-sub,
+:is(.aside-secondary, #artis-menu-popup) .menu-sub-accordion {
+  display: block !important;
+  position: absolute !important;
+  left: calc(100% - 4px) !important;   /* -4px = pont anti-trou de survol */
+  top: -6px !important;
+  margin: 0 !important;
+  padding: 8px 6px !important;
+  min-width: 240px !important;
+  width: max-content !important;
+  max-width: 340px !important;
+  max-height: min(70vh, 560px) !important;
+  overflow-y: auto !important;
+  border-radius: 12px !important;
+  z-index: 90 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateX(10px) !important;
+  transition:
+    transform 0.32s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.26s ease,
+    visibility 0s linear 0.26s !important;
+}
+
+/* Ouverture au survol du parent (ou du popup lui-même) */
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion:hover > .menu-sub,
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion:hover > .menu-sub-accordion {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateX(0) !important;
+  transition:
+    transform 0.32s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.26s ease,
+    visibility 0s !important;
+}
+
+/* Habillage popup — dark (glass) / clair */
+html:not(.artis-light) :is(.aside-secondary, #artis-menu-popup) .menu-sub,
+html:not(.artis-light) :is(.aside-secondary, #artis-menu-popup) .menu-sub-accordion {
+  background: var(--a-s1, #0e0e27) !important;
+  border: 1px solid rgba(99,102,241,0.25) !important;
+  box-shadow: 8px 8px 32px rgba(0,0,0,0.55) !important;
+}
+html.artis-light :is(.aside-secondary, #artis-menu-popup) .menu-sub,
+html.artis-light :is(.aside-secondary, #artis-menu-popup) .menu-sub-accordion {
   background: #ffffff !important;
-  border-right: 1px solid var(--a-border) !important;
-  box-shadow: 1px 0 0 var(--a-border) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 8px 8px 28px rgba(15,23,42,0.16) !important;
 }
 
-html.artis-light .global-search-button-container {
-  background: #ffffff !important;
-  border-bottom: 1px solid var(--a-border) !important;
-}
-html.artis-light .global-search-button-shortcut {
-  background: #f1f3f9 !important;
-  border: 1px solid var(--a-border) !important;
-  color: #64748b !important;
-}
-html.artis-light .global-search-button-shortcut:hover {
-  background: #eef2ff !important;
-  border-color: #c7d2fe !important;
-  color: #4338ca !important;
-}
-html.artis-light .global-search-button-shortcut .shortcut-button {
-  background: #ffffff !important;
-  border: 1px solid var(--a-border) !important;
-  color: #64748b !important;
+/* Liens du sous-menu — slide-in doux à l'ouverture */
+.menu-sub .menu-link {
+  font-size: 0.82rem !important;
+  padding: 6px 10px !important;
+  transform: translateX(-6px) !important;
+  opacity: 0.0 !important;
+  transition:
+    transform 0.4s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.4s ease,
+    background 0.25s ease,
+    color 0.25s ease !important;
 }
 
-/* ── Menu items ───────────────────────────────────────────── */
-html.artis-light .menu-link { color: #475569 !important; }
-html.artis-light .menu-link:hover,
-html.artis-light .menu-item:hover > .menu-link {
-  background: #eef2ff !important;
-  color: #4338ca !important;
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion:hover > .menu-sub .menu-link,
+:is(.aside-secondary, #artis-menu-popup) .menu-item.menu-accordion:hover > .menu-sub-accordion .menu-link {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
 }
-html.artis-light .menu-item.here > .menu-link,
-html.artis-light .menu-item.active > .menu-link,
-html.artis-light .menu-link.active {
-  background: #eef2ff !important;
-  color: #4338ca !important;
+
+/* Stagger révélation des liens enfants */
+.menu-sub .menu-item:nth-child(1) .menu-link { transition-delay: 0.04s !important; }
+.menu-sub .menu-item:nth-child(2) .menu-link { transition-delay: 0.08s !important; }
+.menu-sub .menu-item:nth-child(3) .menu-link { transition-delay: 0.12s !important; }
+.menu-sub .menu-item:nth-child(4) .menu-link { transition-delay: 0.16s !important; }
+.menu-sub .menu-item:nth-child(5) .menu-link { transition-delay: 0.20s !important; }
+.menu-sub .menu-item:nth-child(6) .menu-link { transition-delay: 0.24s !important; }
+.menu-sub .menu-item:nth-child(7) .menu-link { transition-delay: 0.28s !important; }
+.menu-sub .menu-item:nth-child(8) .menu-link { transition-delay: 0.32s !important; }
+
+/* Sous-sous-menu imbriqué : même popup, ancré au bord de l'item enfant */
+:is(.aside-secondary, #artis-menu-popup) .menu-sub .menu-item.menu-accordion > .menu-sub,
+:is(.aside-secondary, #artis-menu-popup) .menu-sub-accordion .menu-item.menu-accordion > .menu-sub-accordion {
+  top: 0 !important;
+}
+
+/* ── Favoris + Checklist : hover fluide (slide ; glow couleur en §3) ── */
+#kt_aside_nav_tab_FAVORIS .menu-link,
+#kt_aside_nav_tab_FAVORIS a,
+#kt_aside_nav_tab_FAVORIS li,
+[id*="FAVORIS"] .menu-link,
+[id*="checklist"] li,
+[id*="checklist"] a,
+[class*="checklist"] li,
+[class*="checklist"] a,
+.favoris-item,
+.checklist-item {
+  border-radius: 8px !important;
+  transition:
+    background 0.34s cubic-bezier(0.22,1,0.36,1),
+    color 0.28s ease,
+    transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+    box-shadow 0.34s ease,
+    padding-left 0.3s cubic-bezier(0.22,1,0.36,1) !important;
+}
+
+#kt_aside_nav_tab_FAVORIS .menu-link:hover,
+#kt_aside_nav_tab_FAVORIS a:hover,
+#kt_aside_nav_tab_FAVORIS li:hover,
+[id*="FAVORIS"] .menu-link:hover,
+[id*="checklist"] li:hover,
+[id*="checklist"] a:hover,
+[class*="checklist"] li:hover,
+[class*="checklist"] a:hover,
+.favoris-item:hover,
+.checklist-item:hover {
+  transform: translateX(4px) !important;
+  padding-left: 16px !important;
+}
+
+/* Étoile favori : pulse doux au hover de la ligne (couleur en §3) */
+#kt_aside_nav_tab_FAVORIS .menu-link:hover .mdi,
+#kt_aside_nav_tab_FAVORIS li:hover .mdi,
+[id*="FAVORIS"] .menu-link:hover [class*="star"] {
+  transform: scale(1.2) rotate(8deg) !important;
+  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1) !important;
+}
+
+/* Flèche accordéon rotation fluide */
+.menu-arrow {
+  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1) !important;
+}
+.menu-item.show > .menu-link .menu-arrow,
+.menu-item.here > .menu-link .menu-arrow,
+.menu-item.hover > .menu-link .menu-arrow {
+  transform: rotate(90deg) !important;
+}
+
+/* ── Nav tabs : scroll horizontal sans wrap (couleurs §3) ──── */
+.nav-tabs {
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+}
+.nav-tabs::-webkit-scrollbar { display: none !important; }
+.nav-tabs .nav-item { margin-bottom: -1px !important; }
+
+/* ── Tooltips : z-index + délai d'apparition ───────────────── */
+/* Tooltips Bootstrap — au-dessus de tout (flyout favoris z=50) */
+.tooltip,
+.bs-tooltip-auto,
+[role="tooltip"] {
+  z-index: 10000 !important;
+}
+
+/* Délai 500ms avant apparition (planning + tooltips généraux) */
+.tooltip,
+.planning-tooltip-content,
+.html-tooltip-content,
+[class*="planning-tooltip"],
+[class*="html-tooltip"] {
+  transition: opacity 0.18s ease 0.5s, visibility 0s linear 0.5s !important;
+}
+/* Disparition immédiate quand la souris part (pas de delay au masquage) */
+.tooltip:not(.show),
+.planning-tooltip-content[style*="display: none"] {
+  transition-delay: 0s !important;
+}
+
+/* ── Planning : zoom hover des blocs (couleurs/glow en §3) ─── */
+.planning-event .panel-planning {
+  transition:
+    transform 0.42s cubic-bezier(0.22,1,0.36,1),
+    box-shadow 0.42s ease,
+    filter 0.4s ease,
+    opacity 0.4s ease !important;
+}
+
+/* Empêche le clip du zoom par les conteneurs de grille */
+.content-grid,
+.content-col,
+.grid,
+div.grid,
+.table-grid,
+.table-grid td,
+.planning-event {
+  overflow: visible !important;
+}
+
+.planning-event {
+  z-index: 3 !important;
+}
+
+.planning-event:hover {
+  z-index: 9999 !important;        /* au-dessus de TOUT pendant le zoom */
+}
+
+.planning-event:hover .panel-planning {
+  transform: scale(1.05) !important;     /* mini zoom propre */
+  transform-origin: center center !important;
+}
+
+/* ── Carte profil : anti-clip / anti-scroll (couleurs §3) ──── */
+#thumbnail {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+#thumbnail,
+#thumbnail * { overflow: visible !important; }
+
+/* Conteneur parent qui scrollait → s'agrandit au contenu */
+:has(> #thumbnail) {
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* ══ LOADING — loader custom orbital (notre widget) ══════════
+   ⚠️ NE PAS forcer `display` ici : Artis masque l'overlay via display:none.
+   Un `display:flex !important` le rendrait permanent et bloquerait le site.
+   On force seulement le plein écran ; Artis garde le contrôle de
+   l'affichage/masquage. Fond sombre de l'overlay en §3. */
+.divChargement {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  z-index: 2147483600 !important;
+}
+
+/* Conteneur loader → centré dans le viewport sans toucher au display de l'overlay */
+.chgtContent,
+.box-rotate-loader {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  animation: artis-loader-pop 0.4s cubic-bezier(0.22,1,0.36,1) both !important;
+}
+
+/* Retirer le bouton « Annuler la recherche » (et tout lien/bouton de l'overlay) */
+.divChargement a,
+.divChargement button,
+.divChargement input[type="button"],
+.divChargement [onclick],
+.chgtContent a,
+.chgtContent button {
+  display: none !important;
+}
+
+/* Masquer le diamant/carré bleu d'origine + son ombre + logo/image résiduels.
+   On masque TOUT descendant des conteneurs loader SAUF notre loader, son noyau
+   et le texte → élimine le carré noir derrière les anneaux. */
+.box-rotate-loader *:not(.artis-loader):not(.artis-loader-core):not(.chgtText),
+.chgtContent > img,
+.chgtContent > svg,
+.divChargement > img,
+.divChargement > svg {
+  display: none !important;
+}
+
+/* Aucun fond / ombre / bordure résiduels sur les conteneurs loader */
+.box-rotate-loader,
+.box-rotate-loader > *:not(.artis-loader),
+.chgtContent,
+[class*="box-rotate"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+/* sauf notre loader injecté */
+.artis-loader, .artis-loader * { display: revert !important; }
+
+/* Nouveau loader injecté via JS : double anneau orbital + noyau */
+.artis-loader {
+  position: relative !important;
+  width: 96px !important;
+  height: 96px !important;
+  margin: 0 auto 30px !important;
+  filter: drop-shadow(0 8px 30px rgba(99,102,241,0.35)) !important;
+}
+
+/* Halo lumineux derrière le loader */
+.artis-loader-core::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important; left: 50% !important;
+  width: 130px !important; height: 130px !important;
+  transform: translate(-50%,-50%) !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, rgba(99,102,241,0.30) 0%, transparent 65%) !important;
+  animation: artis-core-pulse 1.8s ease-in-out infinite !important;
+  pointer-events: none !important;
+}
+
+/* Anneau externe */
+.artis-loader::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 50% !important;
+  border: 4px solid transparent !important;
+  border-top-color: #6366f1 !important;
+  border-right-color: #818cf8 !important;
+  animation: artis-spin 0.9s cubic-bezier(0.5,0,0.5,1) infinite !important;
+  filter: drop-shadow(0 0 10px rgba(99,102,241,0.7)) !important;
+}
+
+/* Anneau interne (sens inverse) */
+.artis-loader::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 16px !important;
+  border-radius: 50% !important;
+  border: 4px solid transparent !important;
+  border-bottom-color: #a5b4fc !important;
+  border-left-color: rgba(129,140,248,0.7) !important;
+  animation: artis-spin-rev 0.7s linear infinite !important;
+  filter: drop-shadow(0 0 6px rgba(165,180,252,0.5)) !important;
+}
+
+/* Noyau pulsant central */
+.artis-loader-core {
+  position: absolute !important;
+  top: 50% !important; left: 50% !important;
+  width: 20px !important; height: 20px !important;
+  margin: -10px 0 0 -10px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, #c7d2fe 0%, #6366f1 70%) !important;
+  box-shadow: 0 0 22px rgba(99,102,241,0.9) !important;
+  animation: artis-core-pulse 1.4s ease-in-out infinite !important;
+}
+
+/* Texte chargement — typo + respiration (couleur en §3) */
+.chgtText {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-size: 1.02rem !important;
   font-weight: 600 !important;
-}
-html.artis-light .menu-title { color: inherit !important; }
-html.artis-light .menu-icon { color: #94a3b8 !important; opacity: 1 !important; }
-html.artis-light .menu-link:hover .menu-icon,
-html.artis-light .menu-link.active .menu-icon { color: #4f46e5 !important; }
-html.artis-light .menu-arrow { color: #94a3b8 !important; }
-html.artis-light .menu-sub { border-left-color: #e6e8f0 !important; }
-
-/* ── Navbar ───────────────────────────────────────────────── */
-html.artis-light .navbar {
-  background: rgba(255,255,255,0.92) !important;
-  border-bottom: 1px solid var(--a-border) !important;
-  box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
-}
-html.artis-light .navbar * { color: #1e293b !important; }
-
-/* ── Cards ────────────────────────────────────────────────── */
-html.artis-light .card {
-  background: #ffffff !important;
-  border: 1px solid var(--a-border) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05) !important;
-  color: var(--a-text) !important;
-  backdrop-filter: none !important;
-}
-html.artis-light .card:hover {
-  border-color: #d2d6e3 !important;
-  box-shadow: 0 4px 12px rgba(15,23,42,0.06), 0 12px 32px rgba(79,70,229,0.07) !important;
-}
-html.artis-light .card-header {
-  background: #fafbfd !important;
-  border-bottom: 1px solid var(--a-border) !important;
-  color: #1e293b !important;
-}
-html.artis-light .card-body { color: #334155 !important; }
-html.artis-light .card-footer {
-  background: #fafbfd !important;
-  border-top: 1px solid var(--a-border) !important;
+  letter-spacing: 0.05em !important;
+  text-align: center !important;
+  animation: artis-text-breathe 2.2s ease-in-out infinite !important;
 }
 
-/* ── Panels génériques ────────────────────────────────────── */
-html.artis-light .panel,
-html.artis-light .panel-body,
-html.artis-light .panel-default,
-html.artis-light [class*="panel-"] {
-  background: #ffffff !important;
-  border-color: var(--a-border) !important;
-  color: #334155 !important;
+/* ── SweetAlert : centré au milieu de l'écran (pas en haut) ── */
+.swal2-container {
+  align-items: center !important;
+  grid-template-rows: minmax(min-content, auto) !important;
+}
+.swal2-container > .swal2-popup,
+.swal2-popup {
+  place-self: center center !important;
+  align-self: center !important;
+  grid-row: 2 !important;
 }
 
-/* ── Tables ───────────────────────────────────────────────── */
-html.artis-light table,
-html.artis-light .table,
-html.artis-light [class*="table"] {
-  background: #ffffff !important;
-}
-html.artis-light table thead th,
-html.artis-light .table thead th,
-html.artis-light #ea_notifications thead th {
-  background: #f1f3f9 !important;
-  color: #475569 !important;
-  border-bottom: 1px solid #e2e5ee !important;
-}
-html.artis-light table tbody tr:nth-child(even) td { background: #fafbfd !important; }
-html.artis-light table tbody tr:hover td,
-html.artis-light .table-hover > tbody > tr:hover > * { background: #eef2ff !important; }
-html.artis-light table td,
-html.artis-light table th {
-  color: #334155 !important;
-  border-color: #eceef4 !important;
-}
-html.artis-light .dataTables_empty { color: #94a3b8 !important; }
-
-/* ── Inputs ───────────────────────────────────────────────── */
-html.artis-light .form-control,
-html.artis-light input:not([type="checkbox"]):not([type="radio"]),
-html.artis-light select,
-html.artis-light textarea {
-  background: #ffffff !important;
-  border: 1px solid #d8dce6 !important;
-  color: #1e293b !important;
-}
-html.artis-light .form-control:focus,
-html.artis-light input:focus,
-html.artis-light select:focus,
-html.artis-light textarea:focus {
-  background: #ffffff !important;
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
-}
-html.artis-light .form-control::placeholder { color: #94a3b8 !important; }
-html.artis-light label, html.artis-light .control-label { color: #64748b !important; }
-
-/* ── Boutons neutres ──────────────────────────────────────── */
-html.artis-light button:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]):not([class*="btn-warning"]):not([class*="btn-info"]):not([class*="swal2"]),
-html.artis-light .btn:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]):not([class*="btn-warning"]):not([class*="btn-info"]),
-html.artis-light .btn-default,
-html.artis-light .btn-secondary,
-html.artis-light .btn-light {
-  background: #ffffff !important;
-  border: 1px solid #d8dce6 !important;
-  color: #475569 !important;
-  box-shadow: 0 1px 2px rgba(15,23,42,0.04) !important;
-}
-html.artis-light button:not([class*="btn-primary"]):not([class*="swal2"]):hover,
-html.artis-light .btn-default:hover,
-html.artis-light .btn-secondary:hover {
-  background: #eef2ff !important;
-  border-color: #c7d2fe !important;
-  color: #4338ca !important;
-}
-
-/* Boutons primaires — gradient conservé */
-html.artis-light .btn-primary,
-html.artis-light .btn-info {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important;
-}
-
-/* ── Texte ────────────────────────────────────────────────── */
-html.artis-light h1, html.artis-light h2, html.artis-light h3,
-html.artis-light h4, html.artis-light h5, html.artis-light h6 { color: #0f172a !important; }
-html.artis-light p, html.artis-light span, html.artis-light td, html.artis-light li,
-html.artis-light div { color: #334155 !important; }
-html.artis-light small, html.artis-light .text-muted,
-html.artis-light .text-body-secondary { color: #64748b !important; }
-html.artis-light a { color: #4f46e5 !important; }
-html.artis-light a:hover { color: #6366f1 !important; }
-html.artis-light hr { border-color: var(--a-border) !important; }
-html.artis-light .breadcrumb-item { color: #64748b !important; }
-html.artis-light .breadcrumb-item.active { color: #1e293b !important; }
-html.artis-light .breadcrumb-item a { color: #64748b !important; }
-html.artis-light .breadcrumb-item a:hover { color: #4f46e5 !important; }
-html.artis-light .text-artis-default-color { color: #4f46e5 !important; }
-
-/* ── Nav tabs ─────────────────────────────────────────────── */
-html.artis-light .nav-tabs { border-bottom: 1px solid var(--a-border) !important; }
-html.artis-light .nav-tabs .nav-link { color: #64748b !important; }
-html.artis-light .nav-tabs .nav-link:hover { background: #f6f7fb !important; color: #4338ca !important; }
-html.artis-light .nav-tabs .nav-link.active {
-  color: #4338ca !important;
-  border-bottom-color: #6366f1 !important;
-  font-weight: 600 !important;
-}
-
-/* ── Canvas masqué en clair (fond propre uni) ─────────────── */
-html.artis-light #artis-app-canvas { display: none !important; }
-
-/* ── Dropdowns ────────────────────────────────────────────── */
-html.artis-light .dropdown-menu,
-html.artis-light .menu.menu-sub-dropdown,
-html.artis-light .planning-context-menu {
-  background: #ffffff !important;
-  border: 1px solid var(--a-border) !important;
-  box-shadow: 0 8px 28px rgba(15,23,42,0.12) !important;
-}
-html.artis-light .dropdown-item,
-html.artis-light .menu.menu-sub-dropdown .menu-link,
-html.artis-light .planning-context-menu .dropdown-item {
-  color: #475569 !important;
-}
-html.artis-light .dropdown-item:hover,
-html.artis-light .menu.menu-sub-dropdown .menu-link:hover,
-html.artis-light .planning-context-menu .dropdown-item:hover {
-  background: #eef2ff !important;
-  color: #4338ca !important;
-}
-html.artis-light .dropdown-header { color: #94a3b8 !important; }
-
-/* ── Modals ───────────────────────────────────────────────── */
-html.artis-light .modal-content {
-  background: #ffffff !important;
-  border: 1px solid var(--a-border) !important;
-  box-shadow: 0 24px 64px rgba(15,23,42,0.2) !important;
-  color: #1e293b !important;
-}
-html.artis-light .modal-header {
-  background: #fafbfd !important;
-  border-bottom: 1px solid var(--a-border) !important;
-}
-html.artis-light .modal-title { color: #0f172a !important; }
-html.artis-light .modal-backdrop { background: rgba(15,23,42,0.4) !important; }
-
-/* ── Planning clair ───────────────────────────────────────── */
-html.artis-light div.grid { background: #ffffff !important; }
-html.artis-light .table-horaires { background: #f6f7fb !important; }
-html.artis-light .table-horaires tbody tr td { color: #4f46e5 !important; }
-html.artis-light .off-working-plage { background: #f1f3f9 !important; }
-html.artis-light .tech-group-name { color: #4f46e5 !important; border-bottom-color: #c7d2fe !important; }
-html.artis-light #calendarContent { border-top-color: var(--a-border) !important; }
-html.artis-light table.table-grid tbody tr td { border-color: #eceef4 !important; color: #334155 !important; }
-html.artis-light table.table-grid tbody tr:hover td { background: #eef2ff !important; }
-
-/* ── SweetAlert clair ─────────────────────────────────────── */
-html.artis-light .swal2-popup { background: #ffffff !important; border: 1px solid var(--a-border) !important; color: #1e293b !important; }
-html.artis-light .swal2-title { color: #0f172a !important; }
-html.artis-light .swal2-html-container { color: #475569 !important; }
-
-/* ── Scrollbar ────────────────────────────────────────────── */
-html.artis-light * { scrollbar-color: #c7cdd9 #eef0f6 !important; }
-html.artis-light *::-webkit-scrollbar-track { background: #eef0f6 !important; }
-html.artis-light *::-webkit-scrollbar-thumb { background: #c7cdd9 !important; }
-html.artis-light *::-webkit-scrollbar-thumb:hover { background: #a5b4fc !important; }
+/* ══ WIDGETS INJECTÉS (toggle thème, Gilles, version, changelog) ══ */
 
 /* ── Bouton toggle theme — hérite des styles nav-link sidebar ─ */
 #artis-theme-toggle {
@@ -362,13 +718,38 @@ html.artis-light *::-webkit-scrollbar-thumb:hover { background: #a5b4fc !importa
   background: rgba(251,191,36,0.12) !important;
 }
 
-html.artis-light #artis-theme-toggle {
-  color: #fbbf24 !important;
+/* Thème clair : icônes des boutons injectés (menu / theme / Gilles / version)
+   en BLANC sur la sidebar native bleue Artis */
+html.artis-light #artis-menu-btn,
+html.artis-light #artis-theme-toggle,
+html.artis-light #giles-aside-btn,
+html.artis-light #artis-version-btn {
+  color: #fff !important;
 }
 
-html.artis-light #artis-theme-toggle:hover {
-  color: #f59e0b !important;
+html.artis-light #artis-menu-btn:hover,
+html.artis-light #artis-theme-toggle:hover,
+html.artis-light #giles-aside-btn:hover,
+html.artis-light #artis-version-btn:hover {
+  color: #fff !important;
   background: rgba(255,255,255,0.2) !important;
+}
+
+/* ── Bouton MENU (sidebar) — blanc, même gabarit que theme/Gilles ─ */
+#artis-menu-btn {
+  color: rgba(255,255,255,0.9) !important;
+}
+#artis-menu-btn:hover {
+  color: #fff !important;
+  background: rgba(255,255,255,0.16) !important;
+}
+#artis-menu-btn svg {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  flex-shrink: 0 !important;
+  stroke-width: 1.6 !important;
 }
 
 /* ── Bouton GILES (sidebar) — vert émeraude pour le distinguer ─ */
@@ -390,7 +771,7 @@ html.artis-light #artis-theme-toggle:hover {
   color: #a5b4fc !important;
   background: rgba(99,102,241,0.16) !important;
 }
-#artis-version-btn svg { width: 30px !important; height: 30px !important; min-width: 30px !important; min-height: 30px !important; flex-shrink: 0 !important; }
+#artis-version-btn svg { width: 32px !important; height: 32px !important; min-width: 32px !important; min-height: 32px !important; flex-shrink: 0 !important; }
 
 .artis-version-badge {
   position: absolute !important;
@@ -535,2156 +916,70 @@ html.artis-light .artis-cl-header h3 { color: #0f172a !important; }
 html.artis-light .artis-cl-body li { color: #475569 !important; }
 html.artis-light .artis-cl-date { color: #94a3b8 !important; }
 
-/* ══════════════════════════════════════════════════════════
-   BASE PAGE
-   ══════════════════════════════════════════════════════════ */
-html, body {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
-  background: var(--a-bg) !important;
-  color: var(--a-text) !important;
-}
-
-/* ── Canvas background ────────────────────────────────────── */
-#artis-app-canvas {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 0 !important;
-  pointer-events: none !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   PAGE CONTAINER — fond sombre explicite partout
-   ══════════════════════════════════════════════════════════ */
-.page-container,
-.page-content,
-#page-content,
-.aside,
-.aside-extended,
-.content,
-.content-inner,
-.wrapper,
-#wrapper,
-.main-content,
-#main-content,
-.app-content,
-#app-content,
-[id*="kt_content"],
-[id*="kt_wrapper"],
-[id*="kt_post"],
-[class*="page-content"],
-[class*="content-wrapper"],
-[class*="main-wrapper"] {
-  background: transparent !important;
-  position: relative;
-  z-index: 1;
-}
-
-/* Fond explicite sur body + html pour écraser tout gris */
-html { background: var(--a-bg) !important; }
-body:not(.login-page) { background: var(--a-bg) !important; }
-
-/* Page Artis : class body spécifique (ex: body.page-ccWorkflowManager) */
-[class*="page-cc"],
-[class*="page-artis"],
-[class*="page-workflow"],
-[class*="page-planning"] {
-  background: var(--a-bg) !important;
-}
-
-/* Zone contenu workflow / tâches — fond sombre explicite */
-.panel-body,
-.panel-content,
-.panel-default,
-.panel-default > .panel-heading,
-.panel-default > .panel-body,
-[class*="panel-"] {
-  background: transparent !important;
-  border-color: rgba(99,102,241,0.15) !important;
-  color: var(--a-text) !important;
-}
-
-/* Tabs sans fond */
-.tab-content-no-tab [id^="tab-"] {
-  background: transparent !important;
-  border-color: rgba(99,102,241,0.15) !important;
-}
-
-/* ── FORM wrappers (Artis wrappe pages dans <form>) ──────── */
-body form,
-body > form > div,
-body > form > div > div,
-body > form > div > div > div,
-body > form div,
-body > form section,
-body > form article,
-body > form main,
-body > form aside:not(.aside-primary):not(.aside-secondary),
-body > form header,
-body > form footer {
-  background: transparent !important;
-  color: var(--a-text) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   SIDEBAR — aside-primary / bg-artis-default-color
-   (classe exacte vue dans le HTML)
-   ══════════════════════════════════════════════════════════ */
-.aside-primary,
-.bg-artis-default-color {
-  background: linear-gradient(180deg, #1c1c42 0%, #181838 100%) !important;
-  border-right: 1px solid rgba(99,102,241,0.25) !important;
-  box-shadow: 2px 0 24px rgba(0,0,0,0.6), inset -1px 0 0 rgba(99,102,241,0.12) !important;
-}
-
-/* Logo zone */
-.aside-primary .aside-logo {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(99,102,241,0.12) !important;
-}
-
-/* Icônes nav — aside-item-btn wrapper */
-.aside-item-btn {
+/* ── TinyMCE inline : barre TOUJOURS visible (structure) ─────
+   display forcé : TinyMCE masque la barre au blur (style inline display:none),
+   l'utilisateur la veut affichée EN PERMANENCE. Exception assumée à la règle
+   « ne pas forcer display » : barre décorative, ne bloque aucune interaction
+   (≠ overlay de chargement). Position gérée par placeToolbar() (JS).
+   Couleurs de la barre en §3 — skin natif clair en thème clair. */
+.tox.tox-tinymce-inline {
   display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  z-index: 2147483200 !important;
 }
 
-/* Stagger entrée piloté par JS (une seule timeline pour TOUS les boutons,
-   natifs + injectés) → entrée parfaitement raccord, queue leu leu */
-.artis-stagger-init { opacity: 0 !important; }   /* état initial avant lancement */
-
-.artis-stagger-go {
-  animation: artis-aside-in 1.3s cubic-bezier(0.34,1.4,0.64,1) both !important;
-}
-
-@keyframes artis-aside-in {
-  from { opacity: 0; transform: translateX(-14px) scale(0.6); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-/* Boutons icônes — léger fond pour les détacher du fond */
-.aside-primary .nav-link.btn.btn-icon {
-  background: rgba(99,102,241,0.08) !important;
-  border: 1px solid rgba(99,102,241,0.08) !important;
-  border-radius: 10px !important;
-  color: rgba(203,213,225,0.85) !important;
-  transition:
-    background 0.32s cubic-bezier(0.22,1,0.36,1),
-    color 0.28s ease,
-    box-shadow 0.32s ease,
-    transform 0.22s cubic-bezier(0.22,1,0.36,1) !important;
-  margin: 3px 0 !important;
-  width: 44px !important;
-  height: 44px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+/* Bouton Reformuler Gilles — couleur indigo, survol accentué (notre bouton) */
+#artis-reformuler-btn.tox-tbtn {
+  color: #6366f1 !important;
+  background: rgba(99,102,241,0.15) !important;
+  border: 1px solid rgba(99,102,241,0.4) !important;
+  border-radius: 6px !important;
   cursor: pointer !important;
 }
-
-.aside-primary .nav-link.btn.btn-icon:hover {
-  background: rgba(99,102,241,0.16) !important;
-  color: #fff !important;
-  box-shadow:
-    0 0 0 1px rgba(129,140,248,0.22),
-    inset 0 1px 0 rgba(255,255,255,0.05) !important;
-  transform: scale(1.08) !important;
+#artis-reformuler-btn.tox-tbtn svg { fill: #6366f1 !important; stroke: #6366f1 !important; }
+#artis-reformuler-btn.tox-tbtn:hover,
+#artis-reformuler-btn.tox-tbtn:focus {
+  background: rgba(99,102,241,0.35) !important;
 }
 
-.aside-primary .nav-link.btn.btn-icon.active {
-  background: rgba(99,102,241,0.22) !important;
-  color: var(--a-p2) !important;
-  box-shadow: 0 0 0 1px rgba(99,102,241,0.3) !important;
+/* ── Modal « Ma page d'accueil » (#my-home-page, widgets grid-stack) ──
+   La .modal-body.modal-max-height plafonnait à 75vh → pop-up tronqué.
+   On l'ouvre sur toute la hauteur de l'écran. */
+#my-home-page .modal-dialog {
+  width: 96vw !important;
+  max-width: 1600px !important;
+  height: calc(100vh - 24px) !important;
+  max-height: calc(100vh - 24px) !important;
+  margin: 12px auto !important;
+  display: flex !important;
 }
-
-/* SVG icons color */
-.aside-primary .svg-icon-white {
-  color: rgba(148,163,184,0.65) !important;
-}
-.aside-primary .nav-link.btn.btn-icon:hover .svg-icon-white,
-.aside-primary .nav-link.btn.btn-icon.active .svg-icon-white {
-  color: var(--a-p2) !important;
-}
-
-/* Badges — pill allongé */
-.aside-primary .badge {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  color: #fff !important;
-  border-radius: 99px !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 9px !important;
-  font-weight: 700 !important;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.5), 0 0 0 1px rgba(255,255,255,0.1) !important;
-  min-width: 20px !important;
-  height: 17px !important;
-  line-height: 17px !important;
-  padding: 0 6px !important;
-  letter-spacing: 0.02em !important;
-}
-
-/* Avatar */
-.aside-primary .profile-picture.img-sm {
-  border: 2px solid rgba(99,102,241,0.4) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   ASIDE SECONDARY — panel flyout (menu nav + search)
-   ══════════════════════════════════════════════════════════ */
-.aside-secondary {
-  background: var(--a-s1) !important;
-  border-right: 1px solid rgba(99,102,241,0.18) !important;
-  box-shadow: 4px 0 32px rgba(0,0,0,0.5) !important;
-  /* FLOTTE par-dessus le contenu — ne pousse PAS le tableau */
-  position: absolute !important;
-  top: 0 !important;
-  left: var(--artis-primary-w, 70px) !important;  /* après la sidebar */
+#my-home-page .modal-content {
   height: 100% !important;
-  z-index: 50 !important;
-  transition:
-    transform 0.34s cubic-bezier(0.22,1,0.36,1),
-    opacity 0.26s ease,
-    visibility 0.34s !important;
-  will-change: transform, opacity !important;
-  overflow: hidden !important;
-}
-
-/* Conteneur aside = référence de positionnement */
-.aside,
-.aside-extended { position: relative !important; }
-
-/* ════════════════════════════════════════════════════════════
-   PANEL FLYOUT AU SURVOL (hors page planning où il est docké)
-   Le menu de gauche apparaît quand la souris entre dans la zone
-   (sidebar icônes OU le panel lui-même), avec une animation lente
-   et organique. Plus besoin du bouton flèche (masqué plus bas).
-   On NEUTRALISE le pilotage par .aside-extended : c'est le :hover
-   qui commande, quel que soit l'état Artis.
-   ════════════════════════════════════════════════════════════ */
-
-/* État fermé par défaut : panel ENTIÈREMENT glissé à gauche (caché derrière
-   la sidebar grâce à son z-index plus élevé). Pur slide, pas de pop. */
-.aside-secondary {
-  transform: translateX(-100%) !important;
-  opacity: 1 !important;
-  pointer-events: none !important;
-  transition: transform 0.5s cubic-bezier(0.22,1,0.36,1) !important;
-}
-
-/* Survol de la zone aside (icônes + panel) → le panel se déroule de gauche à droite */
-.aside:hover .aside-secondary {
-  transform: translateX(0) !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transition: transform 0.5s cubic-bezier(0.22,1,0.36,1) !important;
-}
-
-/* La sidebar icônes masque le panel quand il est glissé en dessous */
-.aside-primary { position: relative !important; z-index: 60 !important; }
-
-/* Contenu interne (search + items) entre en cascade organique */
-.aside:hover .aside-secondary .global-search-button-container {
-  animation: artis-flyout-fade 0.55s cubic-bezier(0.16,1,0.3,1) 0.10s both !important;
-}
-.aside:hover .aside-secondary .menu > .menu-item {
-  animation: artis-flyout-fade 0.55s cubic-bezier(0.16,1,0.3,1) both !important;
-}
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(1) { animation-delay: 0.14s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(2) { animation-delay: 0.19s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(3) { animation-delay: 0.24s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(4) { animation-delay: 0.29s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(5) { animation-delay: 0.34s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(6) { animation-delay: 0.39s !important; }
-.aside:hover .aside-secondary .menu > .menu-item:nth-child(n+7) { animation-delay: 0.44s !important; }
-
-@keyframes artis-flyout-fade {
-  from { opacity: 0; transform: translateX(-14px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* Bouton flèche de déroulement → retiré (le survol gère tout) */
-#kt_aside_toggle,
-.aside-toggle,
-.aside-secondary-toggle,
-.btn-aside-minimize,
-[data-kt-aside-minimize],
-[data-kt-toggle*="aside"] {
-  display: none !important;
-}
-
-.aside-workspace {
-  background: transparent !important;
-  transition: opacity 0.3s ease !important;
-}
-
-/* Page planning : masquer la barre de recherche flottante */
-html.artis-page-planning .global-search-button-container,
-html.artis-page-planning .global-search-button-shortcut {
-  display: none !important;
-}
-
-/* Page planning : panel en overlay FIXED (pleine hauteur écran, au-dessus
-   du contenu) → le planning ne se redimensionne plus à l'ouverture (le
-   docké « relative » provoquait un reflow instantané et brutal). Le fixed
-   est indépendant de la hauteur du parent .aside → ne « dépasse » plus
-   derrière le contenu comme l'ancien absolute (piège v1.9.14).
-   Ouverture = même flyout fluide au survol que les autres pages. */
-html.artis-page-planning .aside-secondary {
-  position: fixed !important;
-  top: 0 !important;
-  left: var(--artis-primary-w, 70px) !important;
-  height: 100vh !important;
-  z-index: 50 !important;
-}
-html.artis-page-planning #kt_aside_workspace,
-html.artis-page-planning #kt_aside_workspace > div,
-html.artis-page-planning #kt_aside_workspace .tab-content {
-  overflow: visible !important;
-  background: transparent !important;
-}
-
-/* Page entreeVisualiser : effacer la bande vide derrière le card favoris
-   (transparent + sans bordure/ombre, mais on garde le contenu visible) */
-html.artis-page-entree .aside-secondary {
-  background: transparent !important;
-  border-right: none !important;
-  box-shadow: none !important;
-}
-html.artis-page-entree .aside-secondary .aside-workspace,
-html.artis-page-entree .aside-secondary .tab-content,
-html.artis-page-entree .aside-secondary .tab-pane:empty {
-  background: transparent !important;
-}
-
-/* Conteneur aside → transition douce de largeur */
-.aside,
-.aside-extended {
-  transition:
-    width 0.34s cubic-bezier(0.22,1,0.36,1),
-    transform 0.34s cubic-bezier(0.22,1,0.36,1) !important;
-}
-
-/* ── Search bar (Ctrl+K) ──────────────────────────────────── */
-.global-search-button-container {
-  background: rgba(99,102,241,0.06) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.15) !important;
-  padding: 10px 12px !important;
-}
-
-.global-search-button-shortcut {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 10px !important;
-  color: var(--a-muted) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  padding: 8px 12px !important;
-  transition:
-    background 0.32s cubic-bezier(0.22,1,0.36,1),
-    border-color 0.32s ease,
-    box-shadow 0.32s ease,
-    color 0.28s ease,
-    transform 0.22s cubic-bezier(0.22,1,0.36,1) !important;
-  font-size: 0.82rem !important;
-  text-decoration: none !important;
-}
-
-.global-search-button-shortcut:hover {
-  background: rgba(99,102,241,0.14) !important;
-  border-color: rgba(99,102,241,0.45) !important;
-  color: var(--a-text) !important;
-  box-shadow: 0 4px 16px rgba(99,102,241,0.18), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-  transform: translateY(-1px) !important;
-}
-
-.global-search-button-shortcut:active { transform: translateY(0) scale(0.99) !important; }
-
-/* Loupe pulse léger au hover */
-.global-search-button-shortcut:hover .svg-icon { color: var(--a-p2) !important; }
-
-.global-search-button-shortcut .shortcut-button {
-  background: rgba(99,102,241,0.15) !important;
-  border: 1px solid rgba(99,102,241,0.25) !important;
-  border-radius: 4px !important;
-  color: var(--a-muted) !important;
-  font-size: 0.7rem !important;
-  padding: 1px 5px !important;
-}
-
-.global-search-button-shortcut .svg-icon {
-  color: var(--a-muted) !important;
-}
-
-/* ── Menu principal (aside nav tabs) ──────────────────────── */
-.tab-content,
-.tab-pane {
-  background: transparent !important;
-}
-
-/* Menu colonne */
-.menu.menu-column,
-.menu_ARTIS_NET,
-[class*="menu_"] {
-  background: transparent !important;
-}
-
-/* Item de menu — spacing resserré dans le volet */
-.menu-item {
-  background: transparent !important;
-}
-
-.aside-secondary .menu > .menu-item,
-.aside-secondary .menu-column > .menu-item,
-.aside-secondary .menu-item {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Liens compacts collés les uns aux autres */
-.aside-secondary .menu-link {
-  margin: 1px 8px !important;
-  padding: 9px 12px !important;
-}
-
-/* Conteneur menu : pas de marge (Bootstrap my-5) → items à la queue leu leu */
-.aside-secondary .menu,
-.aside-secondary .menu-column,
-.aside-secondary .menu_ARTIS_NET,
-.aside-secondary [class*="menu_"] {
-  margin: 0 !important;
-}
-.aside-secondary .menu-item.menu-accordion { margin: 0 !important; }
-
-/* Lien menu */
-.menu-link {
-  background: transparent !important;
-  border-radius: 8px !important;
-  color: rgba(203,213,225,0.8) !important;
-  padding: 8px 12px !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  text-decoration: none !important;
-}
-
-.menu-link:hover,
-.menu-item:hover > .menu-link {
-  background: rgba(99,102,241,0.12) !important;
-  color: var(--a-p2) !important;
-}
-
-.menu-item.here > .menu-link,
-.menu-item.active > .menu-link,
-.menu-link.active {
-  background: rgba(99,102,241,0.18) !important;
-  color: var(--a-p2) !important;
-  font-weight: 600 !important;
-}
-
-/* Titre menu */
-.menu-title {
-  color: inherit !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-}
-
-/* Icône menu */
-.menu-icon {
-  color: var(--a-muted) !important;
-  opacity: 0.75 !important;
-  transition: color 0.15s ease !important;
-}
-
-.menu-link:hover .menu-icon,
-.menu-link.active .menu-icon {
-  color: var(--a-p2) !important;
-  opacity: 1 !important;
-}
-
-/* Flèche accordéon */
-.menu-arrow {
-  color: var(--a-muted) !important;
-  opacity: 0.5 !important;
-}
-
-/* Sous-menu */
-.menu-sub,
-.menu-sub-accordion {
-  background: transparent !important;
-  padding-left: 8px !important;
-  border-left: 1px solid rgba(99,102,241,0.12) !important;
-  margin-left: 18px !important;
-  overflow: hidden !important;
-}
-
-/* Déroulé accordéon fluide — Metronic toggle .show/.hiding */
-.menu-sub-accordion {
-  display: block !important;
-  max-height: 0 !important;             /* replié = 0 (fiable avec plusieurs enfants) */
-  opacity: 0 !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  transition:
-    max-height 0.42s cubic-bezier(0.22,1,0.36,1),
-    opacity 0.32s ease,
-    padding 0.42s cubic-bezier(0.22,1,0.36,1) !important;
-}
-
-.menu-sub-accordion > * { min-height: 0 !important; }
-
-/* État ouvert */
-.menu-item.show > .menu-sub-accordion,
-.menu-item.hover > .menu-sub-accordion,
-.menu-item.here > .menu-sub-accordion,
-.menu-accordion.show > .menu-sub-accordion,
-.show > .menu-sub-accordion {
-  max-height: 600px !important;
-  opacity: 1 !important;
-}
-
-/* Liens du sous-menu — slide-in doux quand ouvert */
-.menu-sub .menu-link {
-  font-size: 0.82rem !important;
-  padding: 6px 10px !important;
-  color: rgba(148,163,184,0.8) !important;
-  transform: translateX(-6px) !important;
-  opacity: 0.0 !important;
-  transition:
-    transform 0.4s cubic-bezier(0.22,1,0.36,1),
-    opacity 0.4s ease,
-    background 0.25s ease,
-    color 0.25s ease !important;
-}
-
-.show > .menu-sub-accordion .menu-link,
-.menu-item.show .menu-sub .menu-link,
-.menu-item.here .menu-sub .menu-link,
-.menu-item.hover .menu-sub .menu-link {
-  transform: translateX(0) !important;
-  opacity: 1 !important;
-}
-
-/* Stagger révélation des liens enfants */
-.menu-sub .menu-item:nth-child(1) .menu-link { transition-delay: 0.04s !important; }
-.menu-sub .menu-item:nth-child(2) .menu-link { transition-delay: 0.08s !important; }
-.menu-sub .menu-item:nth-child(3) .menu-link { transition-delay: 0.12s !important; }
-.menu-sub .menu-item:nth-child(4) .menu-link { transition-delay: 0.16s !important; }
-.menu-sub .menu-item:nth-child(5) .menu-link { transition-delay: 0.20s !important; }
-.menu-sub .menu-item:nth-child(6) .menu-link { transition-delay: 0.24s !important; }
-.menu-sub .menu-item:nth-child(7) .menu-link { transition-delay: 0.28s !important; }
-.menu-sub .menu-item:nth-child(8) .menu-link { transition-delay: 0.32s !important; }
-
-.menu-sub .menu-link:hover {
-  color: var(--a-p2) !important;
-  background: rgba(99,102,241,0.1) !important;
-}
-
-/* ── Favoris + Checklist : hover fluide (slide + glow doux) ──── */
-#kt_aside_nav_tab_FAVORIS .menu-link,
-#kt_aside_nav_tab_FAVORIS a,
-#kt_aside_nav_tab_FAVORIS li,
-[id*="FAVORIS"] .menu-link,
-[id*="checklist"] li,
-[id*="checklist"] a,
-[class*="checklist"] li,
-[class*="checklist"] a,
-.favoris-item,
-.checklist-item {
-  border-radius: 8px !important;
-  transition:
-    background 0.34s cubic-bezier(0.22,1,0.36,1),
-    color 0.28s ease,
-    transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
-    box-shadow 0.34s ease,
-    padding-left 0.3s cubic-bezier(0.22,1,0.36,1) !important;
-}
-
-#kt_aside_nav_tab_FAVORIS .menu-link:hover,
-#kt_aside_nav_tab_FAVORIS a:hover,
-#kt_aside_nav_tab_FAVORIS li:hover,
-[id*="FAVORIS"] .menu-link:hover,
-[id*="checklist"] li:hover,
-[id*="checklist"] a:hover,
-[class*="checklist"] li:hover,
-[class*="checklist"] a:hover,
-.favoris-item:hover,
-.checklist-item:hover {
-  background: rgba(99,102,241,0.14) !important;
-  color: var(--a-p2) !important;
-  transform: translateX(4px) !important;
-  padding-left: 16px !important;
-  box-shadow: inset 3px 0 0 rgba(129,140,248,0.7), 0 2px 12px rgba(99,102,241,0.15) !important;
-}
-
-/* Étoile favori : pulse doux au hover de la ligne */
-#kt_aside_nav_tab_FAVORIS .menu-link:hover .mdi,
-#kt_aside_nav_tab_FAVORIS li:hover .mdi,
-[id*="FAVORIS"] .menu-link:hover [class*="star"] {
-  transform: scale(1.2) rotate(8deg) !important;
-  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1) !important;
-  color: #fbbf24 !important;
-}
-
-/* Flèche accordéon rotation fluide */
-.menu-arrow {
-  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1) !important;
-}
-.menu-item.show > .menu-link .menu-arrow,
-.menu-item.here > .menu-link .menu-arrow,
-.menu-item.hover > .menu-link .menu-arrow {
-  transform: rotate(90deg) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   NAVBAR TOP
-   ══════════════════════════════════════════════════════════ */
-.navbar {
-  background: rgba(8,8,24,0.96) !important;
-  backdrop-filter: var(--a-blur) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.15) !important;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.4) !important;
-  color: var(--a-text) !important;
-  z-index: 100 !important;
-}
-
-.navbar * { color: var(--a-text) !important; }
-
-.navbar-brand img { filter: brightness(1.1) !important; }
-
-/* ══════════════════════════════════════════════════════════
-   BREADCRUMB
-   ══════════════════════════════════════════════════════════ */
-.breadcrumb-line {
-  background: transparent !important;
-}
-
-.breadcrumb {
-  background: transparent !important;
-}
-
-.breadcrumb-item { color: var(--a-muted) !important; font-size: 0.8rem !important; }
-.breadcrumb-item a { color: var(--a-muted) !important; transition: color 0.2s !important; }
-.breadcrumb-item a:hover { color: var(--a-p2) !important; }
-.breadcrumb-item.active { color: var(--a-text) !important; }
-.breadcrumb-item + .breadcrumb-item::before { color: rgba(99,102,241,0.35) !important; }
-
-/* ══════════════════════════════════════════════════════════
-   PAGE HEADER
-   ══════════════════════════════════════════════════════════ */
-.page-header {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(99,102,241,0.15) !important;
-  margin-bottom: 0 !important;
-}
-
-/* Bandeau STICKY (titre intervention + onglets Dit/Compte-rendu/Tâches…) :
-   doit rester OPAQUE — un sticky transparent laisse le contenu apparaître
-   derrière le titre au scroll (régression du strip global de fonds). */
-.page-data-header.sticky-top {
-  background: linear-gradient(160deg, #1b1b42 0%, #15153a 100%) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.3) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
-}
-
-.page-header h1, .page-header h2, .page-header h3 {
-  color: var(--a-text) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   TABS — nav-tabs
-   ══════════════════════════════════════════════════════════ */
-.nav-tabs {
-  border-bottom: 1px solid rgba(99,102,241,0.2) !important;
-  background: transparent !important;
-  flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  scrollbar-width: none !important;
-}
-
-.nav-tabs::-webkit-scrollbar { display: none !important; }
-.nav-tabs .nav-item { margin-bottom: -1px !important; }
-
-.nav-tabs .nav-link,
-.nav-tabs li > a {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 2px solid transparent !important;
-  border-radius: 0 !important;
-  color: var(--a-muted) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-  padding: 10px 18px !important;
-  white-space: nowrap !important;
-  transition: all 0.2s ease !important;
-  cursor: pointer !important;
-  text-decoration: none !important;
-}
-
-.nav-tabs .nav-link:hover { color: var(--a-text) !important; background: rgba(99,102,241,0.06) !important; }
-.nav-tabs .nav-link.active, .nav-tabs li.active > a {
-  border-bottom-color: var(--a-p) !important;
-  color: var(--a-text) !important;
-  font-weight: 600 !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   PLANNING SPÉCIFIQUE
-   Classes extraites de planning.css et du HTML réel
-   ══════════════════════════════════════════════════════════ */
-
-/* Container principal */
-#planning-container {
-  background: transparent !important;
-}
-
-/* Zone calendrier — border top bleu Artis */
-#calendarContent {
-  border-top-color: rgba(99,102,241,0.2) !important;
-  background: transparent !important;
-}
-
-/* !! SOURCE PRINCIPALE DU BLANC !! */
-/* planning.css: div.grid { background: #FFFFFF } */
-div.grid {
-  background: rgba(10,10,28,0.95) !important;
-}
-
-/* Table horaires — planning.css: background: #E8EEF7 */
-.table-horaires {
-  background: rgba(99,102,241,0.08) !important;
-  width: 100% !important;
-}
-
-.table-horaires tbody tr td {
-  background: transparent !important;
-  color: var(--a-p2) !important;
-  border-color: rgba(99,102,241,0.08) !important;
-}
-
-/* Plage hors-travail — planning.css: background: #eee */
-.off-working-plage {
-  background: rgba(99,102,241,0.04) !important;
-}
-.off-working-plage:hover {
-  background: rgba(99,102,241,0.09) !important;
-}
-
-/* Noms techniciens — planning.css: color: #446688 */
-.tech-group-name {
-  color: var(--a-p2) !important;
-  border-bottom-color: rgba(99,102,241,0.25) !important;
-}
-
-/* Table grille planning */
-table.table-grid {
-  background: var(--a-s1) !important;
-}
-
-table.table-grid tbody tr td {
-  background: transparent !important;
-  border-color: rgba(99,102,241,0.08) !important;
-  color: var(--a-text) !important;
-  transition: background 0.12s ease !important;
-}
-
-/* Striping PERMANENT — différence de couleur toujours visible */
-table.table-grid tbody tr:nth-child(odd) td {
-  background: rgba(99,102,241,0.05) !important;
-}
-table.table-grid tbody tr:nth-child(even) td {
-  background: rgba(99,102,241,0.015) !important;
-}
-
-/* Hover = un cran plus marqué */
-table.table-grid tbody tr:hover td {
-  background: rgba(99,102,241,0.11) !important;
-}
-
-/* Light mode striping permanent */
-html.artis-light table.table-grid tbody tr:nth-child(odd) td { background: rgba(99,102,241,0.05) !important; }
-html.artis-light table.table-grid tbody tr:nth-child(even) td { background: rgba(99,102,241,0.015) !important; }
-html.artis-light table.table-grid tbody tr:hover td { background: #eef2ff !important; }
-
-/* ══════════════════════════════════════════════════════════
-   BLOCKS PLANNING (.planning-event) — harmonisés au theme
-   ══════════════════════════════════════════════════════════ */
-.planning-event .panel-planning {
-  border: none !important;
-  border-radius: 8px !important;
-  box-shadow:
-    0 2px 8px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.18),
-    inset 0 0 0 1px rgba(255,255,255,0.08) !important;
-  background-image: none !important;
-  /* Léger overlay sombre pour fondre la couleur Artis dans le theme */
-  background-blend-mode: normal !important;
-  color: #fff !important;
-  overflow: hidden !important;
-  transition:
-    transform 0.42s cubic-bezier(0.22,1,0.36,1),
-    box-shadow 0.42s ease,
-    filter 0.4s ease,
-    opacity 0.4s ease !important;
-}
-
-/* Voile dégradé pour cohérence + profondeur (sans masquer la couleur) */
-.planning-event .panel-planning::before {
-  content: '' !important;
-  position: absolute !important;
-  inset: 0 !important;
-  background: linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0.10) 100%) !important;
-  pointer-events: none !important;
-  border-radius: inherit !important;
-}
-
-/* Saturation/luminosité ajustée → couleurs vives mais pas criardes sur dark */
-.planning-event .panel-planning {
-  filter: saturate(0.85) brightness(0.92) !important;
-}
-
-/* Empêche le clip du zoom par les conteneurs de grille */
-.content-grid,
-.content-col,
-.grid,
-div.grid,
-.table-grid,
-.table-grid td,
-.planning-event {
-  overflow: visible !important;
-}
-
-.planning-event {
-  z-index: 3 !important;
-}
-
-.planning-event:hover {
-  z-index: 9999 !important;        /* au-dessus de TOUT pendant le zoom */
-}
-
-.planning-event:hover .panel-planning {
-  transform: scale(1.05) !important;     /* mini zoom propre */
-  transform-origin: center center !important;
-  opacity: 0.96 !important;
-  filter: saturate(1.05) brightness(1.08) !important;
-  box-shadow:
-    0 10px 30px rgba(0,0,0,0.6),
-    0 0 0 1.5px rgba(129,140,248,0.6),
-    0 0 28px rgba(99,102,241,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.3) !important;
-}
-
-/* Texte lisible sur tout bloc coloré */
-.planning-event .panel-planning .panel-body,
-.planning-event .panel-planning .panel-heading,
-.planning-event .panel-planning span,
-.planning-event .panel-planning i {
-  color: #fff !important;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4) !important;
-}
-
-.planning-event .panel-planning .panel-heading {
-  border-bottom: 1px solid rgba(255,255,255,0.15) !important;
-}
-
-/* Label nature (badge type) → pill propre */
-.planning-event .label.label-nature {
-  border-radius: 5px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.02em !important;
-  background: rgba(0,0,0,0.22) !important;
-  color: #fff !important;
-  backdrop-filter: blur(2px) !important;
-}
-
-/* Bloc à planifier — dashed harmonisé indigo */
-.planning-event.is-a-planifier .panel-planning {
-  border: 2px dashed rgba(129,140,248,0.7) !important;
-  background: rgba(99,102,241,0.12) !important;
-  filter: none !important;
-}
-
-/* Light mode : blocs un peu plus clairs/saturés */
-html.artis-light .planning-event .panel-planning {
-  filter: saturate(1) brightness(1) !important;
-  box-shadow: 0 2px 6px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.3) !important;
-}
-
-/* Hover ajout TNP */
-[data-add-tnp-action=true]:hover {
-  background: rgba(245,158,11,0.1) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   CONTEXT MENUS PLANNING — bg-grey-800 déjà dark, amélioration
-   ══════════════════════════════════════════════════════════ */
-.planning-context-menu.dropdown-menu,
-.planning-context-menu {
-  background: #181840 !important;
-  border: 1px solid rgba(99,102,241,0.25) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-  color: var(--a-text) !important;
-  overflow: hidden !important;
-}
-
-.planning-context-menu .dropdown-header {
-  color: var(--a-muted) !important;
-  font-size: 0.68rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
-  text-transform: uppercase !important;
-  padding: 8px 16px 4px !important;
-}
-
-.planning-context-menu .dropdown-item {
-  background: transparent !important;
-  color: rgba(203,213,225,0.85) !important;
-  font-size: 0.85rem !important;
-  padding: 7px 14px !important;
-  border-radius: 6px !important;
-  margin: 1px 4px !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
-  cursor: pointer !important;
-}
-
-.planning-context-menu .dropdown-item:hover {
-  background: rgba(99,102,241,0.15) !important;
-  color: var(--a-p2) !important;
-}
-
-.planning-context-menu .dropdown-item.disabled {
-  color: rgba(148,163,184,0.35) !important;
-  cursor: not-allowed !important;
-}
-
-.planning-context-menu .img-background {
-  position: absolute !important;
-  right: 12px !important;
-  top: 8px !important;
-  opacity: 0.06 !important;
-  font-size: 3rem !important;
-  color: var(--a-p2) !important;
-  pointer-events: none !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   CARTE PROFIL — #thumbnail .bg-blue (était #03a9f4)
-   ══════════════════════════════════════════════════════════ */
-#thumbnail,
-#thumbnail.bg-blue,
-.thumbnail.bg-blue,
-.thumbnail-component.bg-blue {
-  background: linear-gradient(160deg, #1e1e48 0%, #181838 100%) !important;
-  background-color: #1e1e44 !important;
-  border: 1px solid rgba(99,102,241,0.22) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-  --bs-table-bg: transparent !important;
-  /* Agrandi → fit contenu, plus de scrollbar */
-  height: auto !important;
   max-height: none !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-  padding: 18px 16px !important;
-}
-
-/* Parent direct du thumbnail : laisser respirer (pas de clip/scroll) */
-#thumbnail,
-#thumbnail * { overflow: visible !important; }
-
-/* Conteneur parent qui scrollait → s'agrandit au contenu */
-:has(> #thumbnail) {
-  overflow: visible !important;
-  height: auto !important;
-  max-height: none !important;
-}
-
-/* Zone photo + glow radial derrière la PP */
-#thumbnail .thumb,
-#thumbnail .frozen-dreams-gradient {
-  background: radial-gradient(circle at 50% 42%, rgba(129,140,248,0.4) 0%, rgba(99,102,241,0.18) 35%, transparent 68%) !important;
-  border-radius: 14px !important;
-  padding: 8px !important;
-  position: relative !important;
-}
-
-/* Avatar — ring + glow */
-#thumbnail .photo-content,
-#thumbnail .thumb img {
-  border-radius: 12px !important;
-  border: 2px solid rgba(255,255,255,0.15) !important;
-  box-shadow: 0 0 0 3px rgba(129,140,248,0.45), 0 0 26px rgba(99,102,241,0.5), 0 6px 18px rgba(0,0,0,0.4) !important;
-}
-
-/* Placeholder initiales (JR) */
-#thumbnail .no-photo {
-  color: #fff !important;
-  text-shadow: 0 2px 8px rgba(99,102,241,0.6) !important;
-}
-
-/* Texte carte */
-#thumbnail .caption h6,
-#thumbnail .caption h6 small,
-#thumbnail .checkbox-label { color: var(--a-text) !important; }
-#thumbnail .caption h6 small { color: var(--a-muted) !important; }
-
-/* Boutons ronds roses → garder accent mais cohérence (pp profil/aide/logout) */
-#thumbnail .list-inline-item .btn.bg-pink-400 {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  box-shadow: 0 2px 10px rgba(99,102,241,0.4) !important;
-  color: #fff !important;
-  border: none !important;
-}
-#thumbnail .list-inline-item .btn.bg-pink-400:hover {
-  box-shadow: 0 4px 16px rgba(99,102,241,0.6) !important;
-  transform: translateY(-2px) !important;
-}
-
-/* Boutons édit/suppr sur la photo */
-#thumbnail .thumb-upload.btn-warning {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
-  border: none !important;
-}
-#thumbnail .thumb-delete.btn-danger {
-  background: linear-gradient(135deg, #ef4444, #f87171) !important;
-  border: none !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   ARRAY CONTENT — tableaux de données
-   composants.css: .array-content th { color: #B5B5C3 }
-   ══════════════════════════════════════════════════════════ */
-.array-content {
-  background: transparent !important;
-}
-
-.array-content table {
-  background: transparent !important;
-  color: var(--a-text) !important;
-}
-
-.array-content th {
-  background: rgba(99,102,241,0.12) !important;
-  color: var(--a-muted) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.2) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.07em !important;
-  text-align: center !important;
-  text-transform: uppercase !important;
-  padding: 8px 6px !important;
-}
-
-.array-content td {
-  background: transparent !important;
-  color: var(--a-text) !important;
-  border-color: rgba(99,102,241,0.08) !important;
-  padding: 6px !important;
-  vertical-align: middle !important;
-  transition: background 0.1s ease !important;
-}
-
-.array-content tbody tr:nth-child(even) td {
-  background: rgba(99,102,241,0.03) !important;
-}
-
-.array-content tbody tr:hover td {
-  background: rgba(99,102,241,0.09) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   CARDS / PANELS génériques
-   ══════════════════════════════════════════════════════════ */
-.card {
-  background: rgba(13,13,38,0.88) !important;
-  backdrop-filter: var(--a-blur) !important;
-  -webkit-backdrop-filter: var(--a-blur) !important;
-  border: 1px solid rgba(99,102,241,0.18) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.35) !important;
-  color: var(--a-text) !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-}
-
-.card:hover { border-color: rgba(99,102,241,0.3) !important; }
-
-.card-header {
-  background: rgba(99,102,241,0.1) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.15) !important;
-  color: var(--a-text) !important;
-  font-weight: 600 !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-}
-
-.card-body { background: transparent !important; color: var(--a-text) !important; }
-
-.card-footer {
-  background: rgba(0,0,0,0.2) !important;
-  border-top: 1px solid rgba(99,102,241,0.12) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   MODALS
-   ══════════════════════════════════════════════════════════ */
-.modal-content {
-  background: rgba(10,10,28,0.97) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.65) !important;
-  color: var(--a-text) !important;
-}
-
-.modal-header {
-  background: rgba(99,102,241,0.1) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.15) !important;
-  border-radius: 18px 18px 0 0 !important;
-}
-
-.modal-title { color: var(--a-text) !important; font-weight: 600 !important; }
-.modal-footer { border-top: 1px solid rgba(99,102,241,0.12) !important; }
-.modal-backdrop { background: rgba(0,0,8,0.8) !important; backdrop-filter: blur(6px) !important; }
-
-/* Global search modal */
-#global-search-modal .modal-content { background: rgba(10,10,28,0.98) !important; }
-#global-search-input {
-  background: transparent !important;
-  border: none !important;
-  color: var(--a-text) !important;
-  font-size: 1rem !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-}
-#global-search-input::placeholder { color: rgba(148,163,184,0.5) !important; }
-
-/* ══════════════════════════════════════════════════════════
-   DROPDOWNS génériques
-   ══════════════════════════════════════════════════════════ */
-.dropdown-menu:not(.planning-context-menu) {
-  background: #181840 !important;
-  border: 1px solid rgba(99,102,241,0.22) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-  color: var(--a-text) !important;
-}
-
-.dropdown-menu:not(.planning-context-menu) .dropdown-item {
-  color: rgba(203,213,225,0.85) !important;
-  transition: background 0.15s, color 0.15s !important;
-  border-radius: 6px !important;
-  margin: 1px 4px !important;
-  cursor: pointer !important;
-}
-
-.dropdown-menu:not(.planning-context-menu) .dropdown-item:hover {
-  background: rgba(99,102,241,0.15) !important;
-  color: var(--a-p2) !important;
-}
-
-.dropdown-header {
-  color: var(--a-muted) !important;
-  font-size: 0.68rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
-  text-transform: uppercase !important;
-}
-
-/* ── Menus flottants body-level (texte noir invisible) ────── */
-/* Dropdowns/popovers Artis ajoutés en fin de <body> : body > div > a/li */
-.dropdown-menu a,
-.dropdown-menu li,
-.dropdown-menu span,
-.dropdown-menu label,
-.dropdown-menu .dropdown-item,
-.menu-sub-dropdown a,
-.menu-sub-dropdown span,
-[class*="dropdown"] a:not(.btn),
-.popover, .popover-body, .popover *,
-.tippy-content, .tippy-content *,
-.ui-menu, .ui-menu *,
-.select2-results__option,
-ul[role="listbox"] li,
-ul[role="menu"] li,
-ul[role="menu"] a {
-  color: var(--a-text) !important;
-}
-
-html.artis-light .dropdown-menu a,
-html.artis-light .dropdown-menu li,
-html.artis-light .dropdown-menu span,
-html.artis-light .dropdown-menu .dropdown-item,
-html.artis-light .popover *,
-html.artis-light .ui-menu *,
-html.artis-light ul[role="menu"] a { color: #334155 !important; }
-
-/* Tooltips Bootstrap — au-dessus de tout (flyout favoris z=50) */
-.tooltip,
-.bs-tooltip-auto,
-[role="tooltip"] {
-  z-index: 10000 !important;
-}
-
-/* Délai 500ms avant apparition (planning + tooltips généraux) */
-.tooltip,
-.planning-tooltip-content,
-.html-tooltip-content,
-[class*="planning-tooltip"],
-[class*="html-tooltip"] {
-  transition: opacity 0.18s ease 0.5s, visibility 0s linear 0.5s !important;
-}
-/* Disparition immédiate quand la souris part (pas de delay au masquage) */
-.tooltip:not(.show),
-.planning-tooltip-content[style*="display: none"] {
-  transition-delay: 0s !important;
-}
-
-.tooltip .tooltip-inner,
-.tooltip-inner {
-  background: #1e1e48 !important;
-  color: #e2e8f0 !important;
-  border: 1px solid rgba(99,102,241,0.3) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 0.78rem !important;
-  padding: 6px 10px !important;
-}
-
-.tooltip .tooltip-arrow::before,
-.tooltip-arrow::before {
-  border-top-color: #1e1e48 !important;
-  border-bottom-color: #1e1e48 !important;
-  border-left-color: #1e1e48 !important;
-  border-right-color: #1e1e48 !important;
-}
-
-html.artis-light .tooltip-inner {
-  background: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-color: rgba(99,102,241,0.25) !important;
-}
-
-/* Tooltip jQuery UI (.ui-tooltip — affichait un bloc bleu brut sur le menu) */
-.ui-tooltip,
-.ui-tooltip .ui-tooltip-content,
-.ui-tooltip-content {
-  background: #1e1e48 !important;
-  color: #e2e8f0 !important;
-  border: 1px solid rgba(99,102,241,0.3) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 0.78rem !important;
-  padding: 6px 10px !important;
-}
-.ui-tooltip .ui-tooltip-content {
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-html.artis-light .ui-tooltip {
-  background: #1e293b !important;
-  color: #f1f5f9 !important;
-}
-
-/* Popover / tooltip container dark */
-.popover, .tippy-box, .ui-menu {
-  background: #181840 !important;
-  border: 1px solid rgba(99,102,241,0.22) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-}
-html.artis-light .popover,
-html.artis-light .tippy-box,
-html.artis-light .ui-menu {
-  background: #ffffff !important;
-  border-color: #e6e8f0 !important;
-  box-shadow: 0 8px 28px rgba(15,23,42,0.12) !important;
-}
-
-/* User menu dropdown */
-.menu.menu-sub-dropdown {
-  background: #181840 !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-  color: var(--a-text) !important;
-}
-
-.menu.menu-sub-dropdown .menu-item { background: transparent !important; }
-.menu.menu-sub-dropdown .menu-link { color: rgba(203,213,225,0.85) !important; font-size: 0.875rem !important; }
-.menu.menu-sub-dropdown .menu-link:hover { background: rgba(99,102,241,0.12) !important; color: var(--a-p2) !important; }
-.menu.menu-sub-dropdown .img-background { opacity: 0.05 !important; color: var(--a-p2) !important; }
-
-/* Menu utilisateur (image profil → dropdown body-level) : texte lisible.
-   Metronic colore .menu-title via menu-title-gray-600 (forte spécificité) → forcer clair. */
-.menu.menu-sub-dropdown .menu-item .menu-link .menu-title,
-.menu.menu-sub-dropdown .menu-link .menu-title,
-.menu.menu-sub-dropdown .menu-title,
-.menu.menu-sub-dropdown .menu-content span,
-.menu.menu-sub-dropdown span {
-  color: #e2e8f0 !important;
-}
-.menu.menu-sub-dropdown .menu-link:hover .menu-title { color: var(--a-p2) !important; }
-.menu.menu-sub-dropdown .text-body-secondary,
-.menu.menu-sub-dropdown .fw-light { color: var(--a-muted) !important; }
-.menu.menu-sub-dropdown hr { border-color: rgba(99,102,241,0.2) !important; opacity: 1 !important; }
-
-/* ══════════════════════════════════════════════════════════
-   INPUTS / FORMS
-   ══════════════════════════════════════════════════════════ */
-.form-control,
-input[type="text"]:not([class*="no-border"]),
-input[type="email"],
-input[type="password"],
-input[type="number"],
-input[type="search"],
-select, textarea {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 8px !important;
-  color: var(--a-text) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  transition: border-color 0.2s, box-shadow 0.2s !important;
-}
-
-.form-control:focus, input:focus, select:focus, textarea:focus {
-  background: rgba(255,255,255,0.09) !important;
-  border-color: rgba(99,102,241,0.55) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.18) !important;
-  outline: none !important;
-}
-
-.form-control::placeholder, input::placeholder, textarea::placeholder {
-  color: rgba(148,163,184,0.45) !important;
-}
-
-label, .control-label { color: var(--a-muted) !important; }
-
-/* Champ filtre tableau */
-.filtro, input[placeholder="Filtro"],
-[id*="filter"], [class*="filter-input"] {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 8px !important;
-  color: var(--a-text) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   BUTTONS — ZÉRO BLANC
-   ══════════════════════════════════════════════════════════ */
-
-/* TOUS les boutons → dark, inline styles inclus */
-button,
-.btn,
-[role="button"],
-input[type="button"],
-input[type="submit"],
-input[type="reset"],
-button[style],
-.btn[style] {
-  background: rgba(255,255,255,0.13) !important;
-  background-color: rgba(255,255,255,0.13) !important;
-  border: 1px solid rgba(255,255,255,0.14) !important;
-  border-radius: 8px !important;
-  color: var(--a-text) !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-/* Texte + icônes À L'INTÉRIEUR des boutons (toolbar haut-droite : Insérer DIT,
-   Insérer action, sélecteur de date, engrenage, flèches…) → clairs et lisibles.
-   Artis met souvent .text-dark / couleurs sombres sur ces libellés. */
-button:not(.btn-primary):not(.btn-info):not(.btn-success) span,
-button:not(.btn-primary):not(.btn-info):not(.btn-success) i,
-.btn:not(.btn-primary):not(.btn-info):not(.btn-success) span,
-.btn:not(.btn-primary):not(.btn-info):not(.btn-success) i,
-.page-action-button span, .btn-breadcrumb span,
-.daterangepicker + * span {
-  color: #e2e8f0 !important;
-}
-button svg path, .btn svg path { fill: currentColor !important; }
-
-button:hover,
-.btn:hover,
-[role="button"]:hover {
-  background: rgba(99,102,241,0.15) !important;
-  background-color: rgba(99,102,241,0.15) !important;
-  border-color: rgba(99,102,241,0.35) !important;
-  color: var(--a-p2) !important;
-  box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
-}
-
-/* Variantes explicitement blanches / claires */
-.btn-default,
-.btn-light,
-.btn-white,
-.btn-outline-secondary,
-.btn-outline-light,
-.btn-outline-default {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 8px !important;
-  color: var(--a-muted) !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-.btn-default:hover,
-.btn-light:hover,
-.btn-white:hover,
-.btn-outline-secondary:hover,
-.btn-outline-light:hover,
-.btn-outline-default:hover {
-  background: rgba(99,102,241,0.15) !important;
-  border-color: rgba(99,102,241,0.35) !important;
-  color: var(--a-p2) !important;
-  box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
-}
-
-   ══════════════════════════════════════════════════════════ */
-.btn-primary, .btn-info {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  color: #fff !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  box-shadow: 0 2px 10px rgba(99,102,241,0.3) !important;
-  transition: all 0.2s ease !important;
-}
-
-.btn-primary:hover, .btn-info:hover {
-  box-shadow: 0 4px 18px rgba(99,102,241,0.5) !important;
-  transform: translateY(-1px) !important;
-  color: #fff !important;
-}
-
-.btn-success {
-  background: linear-gradient(135deg, #10b981, #34d399) !important;
-  border: none !important; border-radius: 8px !important;
-  color: #fff !important; font-weight: 600 !important;
-  cursor: pointer !important;
-}
-
-.btn-secondary, .btn-default, .btn-dark {
-  background: rgba(255,255,255,0.07) !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
-  border-radius: 8px !important;
-  color: var(--a-muted) !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-.btn-secondary:hover, .btn-default:hover, .btn-dark:hover {
-  background: rgba(255,255,255,0.12) !important;
-  color: var(--a-text) !important;
-  box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
-}
-
-/* ── Boutons breadcrumb haut-droite (Précédent / Suivant / Fermer)
-   Artis met .text-dark → icônes noires invisibles sur dark.
-   Force couleur claire (svg fill=currentColor) + même taille. ── */
-.page-action-button,
-.btn-breadcrumb,
-.page-action-button.text-dark,
-.btn-breadcrumb.text-dark,
-.page-action-button *,
-.btn-breadcrumb * {
-  color: #f1f5f9 !important;   /* BLANC comme les icônes (texte + flèches + croix) */
-  background: transparent !important;
-  border: none !important;
-}
-.page-action-button,
-.btn-breadcrumb,
-.page-action-button.text-dark,
-.btn-breadcrumb.text-dark,
-.page-action-button[style],
-.btn-breadcrumb[style] {
-  background: rgba(255,255,255,0.13) !important;   /* rectangle arrondi clair bien visible */
-  border: 1px solid rgba(255,255,255,0.14) !important;
-  border-radius: 8px !important;
-}
-.page-action-button .svg-icon svg,
-.btn-breadcrumb .svg-icon svg,
-.page-action-button .svg-icon svg path,
-.btn-breadcrumb .svg-icon svg path,
-.page-action-button svg, .btn-breadcrumb svg,
-.page-action-button svg path, .btn-breadcrumb svg path {
-  color: #f1f5f9 !important;
-  fill: currentColor !important;
-}
-.page-action-button .svg-icon svg,
-.btn-breadcrumb .svg-icon svg {
-  width: 24px !important;
-  height: 24px !important;
-}
-.page-action-button:hover,
-.btn-breadcrumb:hover {
-  color: #c7d2fe !important;
-  background: rgba(99,102,241,0.16) !important;
-  border-color: rgba(99,102,241,0.4) !important;
-  box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
-}
-.page-action-button:hover .svg-icon svg path,
-.btn-breadcrumb:hover .svg-icon svg path { color: #c7d2fe !important; }
-
-/* ══════════════════════════════════════════════════════════
-   LOADING — spinner moderne indigo (remplace diamant bleu)
-   ══════════════════════════════════════════════════════════ */
-/* ⚠️ NE PAS forcer `display` ici : Artis masque l'overlay via display:none.
-   Un `display:flex !important` le rendrait permanent et bloquerait le site.
-   On force seulement le plein écran + le fond ; Artis garde le contrôle de
-   l'affichage/masquage. */
-.divChargement {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  margin: 0 !important;
-  z-index: 2147483600 !important;
-  /* Quasi-opaque → masque le contenu pendant le reload */
-  background: radial-gradient(ellipse at center, rgba(17,17,40,0.985) 0%, rgba(6,6,18,0.995) 100%) !important;
-  backdrop-filter: blur(10px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
-}
-
-/* Conteneur loader → centré dans le viewport sans toucher au display de l'overlay */
-.chgtContent,
-.box-rotate-loader {
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  margin: 0 !important;
-  animation: artis-loader-pop 0.4s cubic-bezier(0.22,1,0.36,1) both !important;
 }
-
-@keyframes artis-loader-pop {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-/* Retirer le bouton « Annuler la recherche » (et tout lien/bouton de l'overlay) */
-.divChargement a,
-.divChargement button,
-.divChargement input[type="button"],
-.divChargement [onclick],
-.chgtContent a,
-.chgtContent button {
-  display: none !important;
-}
-
-/* Masquer le diamant/carré bleu d'origine + son ombre + logo/image résiduels.
-   On masque TOUT descendant des conteneurs loader SAUF notre loader, son noyau
-   et le texte → élimine le carré noir derrière les anneaux. */
-.box-rotate-loader *:not(.artis-loader):not(.artis-loader-core):not(.chgtText),
-.chgtContent > img,
-.chgtContent > svg,
-.divChargement > img,
-.divChargement > svg {
-  display: none !important;
-}
-
-/* Aucun fond / ombre / bordure résiduels sur les conteneurs loader */
-.box-rotate-loader,
-.box-rotate-loader > *:not(.artis-loader),
-.chgtContent,
-[class*="box-rotate"] {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-/* sauf notre loader injecté */
-.artis-loader, .artis-loader * { display: revert !important; }
-
-/* Nouveau loader injecté via JS : double anneau orbital + noyau */
-.artis-loader {
-  position: relative !important;
-  width: 96px !important;
-  height: 96px !important;
-  margin: 0 auto 30px !important;
-  filter: drop-shadow(0 8px 30px rgba(99,102,241,0.35)) !important;
-}
-
-/* Halo lumineux derrière le loader */
-.artis-loader-core::before {
-  content: '' !important;
-  position: absolute !important;
-  top: 50% !important; left: 50% !important;
-  width: 130px !important; height: 130px !important;
-  transform: translate(-50%,-50%) !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle, rgba(99,102,241,0.30) 0%, transparent 65%) !important;
-  animation: artis-core-pulse 1.8s ease-in-out infinite !important;
-  pointer-events: none !important;
-}
-
-/* Anneau externe */
-.artis-loader::before {
-  content: '' !important;
-  position: absolute !important;
-  inset: 0 !important;
-  border-radius: 50% !important;
-  border: 4px solid transparent !important;
-  border-top-color: #6366f1 !important;
-  border-right-color: #818cf8 !important;
-  animation: artis-spin 0.9s cubic-bezier(0.5,0,0.5,1) infinite !important;
-  filter: drop-shadow(0 0 10px rgba(99,102,241,0.7)) !important;
-}
-
-/* Anneau interne (sens inverse) */
-.artis-loader::after {
-  content: '' !important;
-  position: absolute !important;
-  inset: 16px !important;
-  border-radius: 50% !important;
-  border: 4px solid transparent !important;
-  border-bottom-color: #a5b4fc !important;
-  border-left-color: rgba(129,140,248,0.7) !important;
-  animation: artis-spin-rev 0.7s linear infinite !important;
-  filter: drop-shadow(0 0 6px rgba(165,180,252,0.5)) !important;
-}
-
-/* Noyau pulsant central */
-.artis-loader-core {
-  position: absolute !important;
-  top: 50% !important; left: 50% !important;
-  width: 20px !important; height: 20px !important;
-  margin: -10px 0 0 -10px !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle, #c7d2fe 0%, #6366f1 70%) !important;
-  box-shadow: 0 0 22px rgba(99,102,241,0.9) !important;
-  animation: artis-core-pulse 1.4s ease-in-out infinite !important;
-}
-
-@keyframes artis-spin     { to { transform: rotate(360deg); } }
-@keyframes artis-spin-rev { to { transform: rotate(-360deg); } }
-@keyframes artis-core-pulse {
-  0%, 100% { transform: scale(0.7); opacity: 0.7; }
-  50%      { transform: scale(1.1); opacity: 1; }
-}
-
-/* Texte chargement */
-.chgtText {
-  color: #e2e8f0 !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-size: 1.02rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.05em !important;
-  text-align: center !important;
-  text-shadow: 0 2px 12px rgba(99,102,241,0.4) !important;
-  animation: artis-text-breathe 2.2s ease-in-out infinite !important;
-}
-
-@keyframes artis-text-breathe {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
-}
-
-/* Light mode loader */
-html.artis-light .divChargement {
-  background: radial-gradient(ellipse at center, rgba(255,255,255,0.94) 0%, rgba(241,243,249,0.97) 100%) !important;
-}
-html.artis-light .chgtText { color: #475569 !important; }
-
-/* ══════════════════════════════════════════════════════════
-   SWAL2
-   ══════════════════════════════════════════════════════════ */
-.swal2-popup {
-  background: rgba(10,10,28,0.98) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6) !important;
-  color: var(--a-text) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-}
-
-/* Centrer le popup SweetAlert au milieu de l'écran (pas en haut) */
-.swal2-container {
-  align-items: center !important;
-  grid-template-rows: minmax(min-content, auto) !important;
-}
-.swal2-container > .swal2-popup,
-.swal2-popup {
-  place-self: center center !important;
-  align-self: center !important;
-  grid-row: 2 !important;
-}
-
-.swal2-title { color: var(--a-text) !important; }
-.swal2-html-container { color: var(--a-muted) !important; }
-
-.swal2-confirm {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  border: none !important; border-radius: 10px !important;
-  font-weight: 600 !important;
-  box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important;
-}
-
-.swal2-cancel {
-  background: rgba(255,255,255,0.07) !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
-  border-radius: 10px !important;
-  color: var(--a-muted) !important;
-}
-
-.swal2-deny {
-  background: linear-gradient(135deg, #ef4444, #f87171) !important;
-  border: none !important; border-radius: 10px !important; font-weight: 600 !important;
-}
-
-.swal2-loader { border-color: var(--a-p) rgba(0,0,0,0) var(--a-p) rgba(0,0,0,0) !important; }
-
-.swal2-popup.swal2-toast {
-  background: rgba(10,10,28,0.95) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
-  color: var(--a-text) !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   TEXT & MISC
-   ══════════════════════════════════════════════════════════ */
-h1,h2,h3,h4,h5,h6 { color: var(--a-text) !important; font-family: 'Plus Jakarta Sans', sans-serif !important; }
-p, span.menu-title, td, li { color: var(--a-text) !important; }
-small, .text-muted, .text-body-secondary, .fw-light { color: var(--a-muted) !important; }
-hr { border-color: rgba(99,102,241,0.12) !important; }
-a { color: var(--a-p2) !important; transition: color 0.2s !important; }
-a:hover { color: #a5b4fc !important; }
-
-/* ── Bleu Artis → violet partout ─────────────────────────── */
-/* Classes Artis standard */
-.bg-artis-default-color,
-.bg-primary,
-.bg-info,
-[class*="bg-artis"],
-[class*="artis-color"],
-[class*="artis-bg"] {
-  background: linear-gradient(135deg, var(--a-s1), var(--a-s2)) !important;
-  background-color: var(--a-s1) !important;
-  border-color: rgba(99,102,241,0.25) !important;
-}
-
-/* Classes bleu Bootstrap/Artis (.bg-blue = #03a9f4, .bg-info, etc.) */
-.bg-blue,
-[class*="bg-blue"],
-.bg-light-blue,
-.bg-cyan {
-  background: var(--a-s2) !important;
-  background-color: var(--a-s2) !important;
-  border-color: rgba(99,102,241,0.22) !important;
-}
-
-/* Inline style bleu Artis exact (#00AEEF, #0084BD, #428bca, #337ab7, #0090d4) */
-[style*="#00AEEF"], [style*="#00aeef"],
-[style*="#0084BD"], [style*="#0084bd"],
-[style*="#428bca"], [style*="#337ab7"],
-[style*="#0090d4"], [style*="#0090D4"],
-[style*="#007bff"], [style*="#17a2b8"],
-[style*="background: #00"], [style*="background:#00"],
-[style*="background-color: #00"], [style*="background-color:#00"] {
-  background: var(--a-s2) !important;
-  background-color: var(--a-s2) !important;
-  border-color: rgba(99,102,241,0.2) !important;
-}
-
-/* Text artis-default → violet */
-.text-artis-default-color,
-.text-dark { color: var(--a-p2) !important; }
-
-/* Dividers */
-.button-separator { background: rgba(99,102,241,0.2) !important; }
-
-/* Select2 */
-.select2-container .select2-selection {
-  background: rgba(255,255,255,0.06) !important;
-  border-color: rgba(99,102,241,0.2) !important;
-  border-radius: 8px !important;
-  color: var(--a-text) !important;
-}
-
-.select2-dropdown {
-  background: #181840 !important;
-  border-color: rgba(99,102,241,0.22) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-}
-
-.select2-results__option { color: var(--a-text) !important; }
-.select2-results__option--highlighted { background: rgba(99,102,241,0.15) !important; color: var(--a-p2) !important; }
-
-/* ══════════════════════════════════════════════════════════
-   NOTIFICATIONS TABLE — #ea_notifications
-   ══════════════════════════════════════════════════════════ */
-#ea_notifications,
-#ea_notifications thead,
-#ea_notifications tbody,
-#ea_notifications tfoot,
-#ea_notifications tr,
-#ea_notifications th,
-#ea_notifications td {
-  background: transparent !important;
-  background-color: transparent !important;
-  color: var(--a-text) !important;
-  border-color: rgba(99,102,241,0.10) !important;
-}
-
-#ea_notifications thead th {
-  background: rgba(99,102,241,0.12) !important;
-  color: var(--a-muted) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.20) !important;
-  font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.07em !important;
-}
-
-#ea_notifications tbody tr:nth-child(even) td {
-  background: rgba(99,102,241,0.03) !important;
-}
-
-#ea_notifications tbody tr:hover td {
-  background: rgba(99,102,241,0.09) !important;
-}
-
-/* DataTables état vide */
-.dataTables_empty,
-td.dataTables_empty {
-  background: var(--a-s1) !important;
-  color: var(--a-muted) !important;
-  font-style: italic !important;
-  text-align: center !important;
-  padding: 24px !important;
-  border-color: rgba(99,102,241,0.08) !important;
-}
-
-/* ── TABLEAU VIDE — fond dark explicite (pas transparent) ──── */
-/* Empêche le blanc du wrapper de transparaître sur table sans lignes */
-table,
-.table,
-table.dataTable,
-[class*="table"] > table {
-  background-color: var(--a-s1) !important;
-}
-
-/* Wrapper de table → dark aussi (DataTables_wrapper, table-responsive) */
-.dataTables_wrapper,
-.table-responsive,
-.table-container,
-.array-content,
-[class*="table-wrapper"],
-[class*="tableContainer"] {
-  background: var(--a-s1) !important;
-}
-
-/* tbody/zone vide */
-table > tbody:empty,
-table tbody tr.odd:only-child,
-table tbody tr:only-child td,
-tbody:empty {
-  background: var(--a-s1) !important;
+#my-home-page .modal-body,
+#my-home-page .modal-body.modal-max-height {
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  overflow: auto !important;
 }
-
-/* ══════════════════════════════════════════════════════════
-   TABLES — ZERO BLANC (couverture totale)
-   Toutes tables, toutes origines, inline styles inclus
-   ══════════════════════════════════════════════════════════ */
-
-/* L'ÉLÉMENT table garde un fond dark (empêche blanc si vide) */
-table, .table, table.dataTable, [class*="table"] > table {
-  background-color: var(--a-s1) !important;
-}
-
-/* Cellules/sections internes transparentes (laissent voir le dark) */
-thead, tbody, tfoot, tr, th, td,
-.table > *, .table > * > tr > *,
-[class*="table"] thead,
-[class*="table"] tbody,
-[class*="table"] tr,
-[class*="table"] th,
-[class*="table"] td {
-  background-color: transparent !important;
-  color: var(--a-text) !important;
-  border-color: rgba(99,102,241,0.10) !important;
-}
-
-/* Headers de table → fond violet très léger */
-table thead tr,
-table thead th,
-.table thead tr,
-.table thead th,
-[class*="table"] thead th {
-  background: rgba(99,102,241,0.10) !important;
-  color: var(--a-muted) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.18) !important;
-  font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.07em !important;
-  text-transform: uppercase !important;
-}
-
-/* Lignes alternées → lisibilité */
-table tbody tr:nth-child(even) td,
-.table tbody tr:nth-child(even) td,
-[class*="table"] tbody tr:nth-child(even) td {
-  background: rgba(99,102,241,0.03) !important;
-}
-
-/* Hover ligne */
-table tbody tr:hover td,
-.table tbody tr:hover td,
-[class*="table"] tbody tr:hover td {
-  background: rgba(99,102,241,0.08) !important;
-  transition: background 0.1s ease !important;
-}
-
-/* Bootstrap .table-striped override */
-.table-striped > tbody > tr:nth-of-type(odd) > * {
-  background-color: rgba(99,102,241,0.04) !important;
-  color: var(--a-text) !important;
-}
-
-/* Bootstrap .table-hover override */
-.table-hover > tbody > tr:hover > * {
-  background-color: rgba(99,102,241,0.09) !important;
-  color: var(--a-text) !important;
-}
-
-/* Bootstrap .table-dark override (already dark but keep consistent) */
-.table-dark, .table-dark > * > * {
-  background-color: rgba(10,10,28,0.95) !important;
-  color: var(--a-text) !important;
-}
-
-/* Bootstrap 5 colore les lignes striées via variables CSS sur les <td>
-   (--bs-table-bg / --bs-table-striped-bg). Inline ou via classe, ça pouvait
-   laisser des lignes BLANCHES illisibles (ex : tableaux DIT « Tâches à planifier »).
-   On force toutes les variables de table en dark. */
-table, .table, table.dataTable, [class*="table"] {
-  --bs-table-bg: transparent !important;
-  --bs-table-color: #e2e8f0 !important;
-  --bs-table-striped-bg: rgba(99,102,241,0.06) !important;
-  --bs-table-striped-color: #e2e8f0 !important;
-  --bs-table-accent-bg: transparent !important;
-  --bs-table-active-bg: rgba(99,102,241,0.10) !important;
-  --bs-table-active-color: #e2e8f0 !important;
-  --bs-table-hover-bg: rgba(99,102,241,0.10) !important;
-  --bs-table-hover-color: #e2e8f0 !important;
-}
-/* Bootstrap 5.3 peint les cellules striées via box-shadow inset alimenté par
-   --bs-table-bg-type (= --bs-table-striped-bg = #eee). background-color ne suffit
-   donc PAS : il faut écraser la variable sur les cellules elles-mêmes. */
-.table-striped > tbody > tr:nth-of-type(odd) > *,
-table.dataTable.table-striped > tbody > tr.odd > *,
-table.dataTable.table-striped > tbody > tr.even > *,
-table.dataTable > tbody > tr.odd > *,
-table tbody tr:nth-of-type(odd) > * {
-  --bs-table-bg-type: rgba(99,102,241,0.06) !important;
-  --bs-table-accent-bg: rgba(99,102,241,0.06) !important;
-  --bs-table-color-type: #e2e8f0 !important;
-  color: #e2e8f0 !important;
-}
-table tbody tr:nth-of-type(even) > *,
-table.dataTable > tbody > tr.even > * {
-  --bs-table-bg-type: transparent !important;
-  --bs-table-accent-bg: transparent !important;
-  color: #e2e8f0 !important;
-}
-/* hover : tint violet plus marqué via la même variable */
-table.dataTable.table-hover > tbody > tr:hover > *,
-.table-hover > tbody > tr:hover > * {
-  --bs-table-bg-type: rgba(99,102,241,0.12) !important;
-  --bs-table-accent-bg: rgba(99,102,241,0.12) !important;
-  color: #e2e8f0 !important;
-}
-/* Filet de sécurité : lignes au fond clair inline → texte clair */
-table tbody tr[style*="background"] td,
-table tbody tr td[style*="background"] {
-  color: #e2e8f0 !important;
-}
-
-/* DataTables spécifique */
-table.dataTable tbody tr {
-  background: transparent !important;
-}
-
-table.dataTable tbody tr.odd {
-  background: rgba(99,102,241,0.03) !important;
-}
-
-table.dataTable tbody tr.even {
-  background: transparent !important;
-}
-
-table.dataTable tbody tr:hover {
-  background: rgba(99,102,241,0.08) !important;
-}
-
-table.dataTable thead th,
-table.dataTable thead td {
-  background: rgba(99,102,241,0.10) !important;
-  border-bottom: 1px solid rgba(99,102,241,0.18) !important;
-}
-
-/* DataTables controls */
-.dataTables_wrapper .dataTables_filter input,
-.dataTables_wrapper .dataTables_length select {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.2) !important;
-  border-radius: 6px !important;
-  color: var(--a-text) !important;
-}
-
-.dataTables_wrapper .dataTables_info,
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-  color: var(--a-muted) !important;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button.current,
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-  background: rgba(99,102,241,0.15) !important;
-  border-color: rgba(99,102,241,0.25) !important;
-  color: var(--a-p2) !important;
-  border-radius: 6px !important;
-}
-
-/* Catch inline style white/light sur cellules */
-td[style*="background"],
-th[style*="background"],
-tr[style*="background"] {
-  background: transparent !important;
-  background-color: transparent !important;
-}
-
-/* Lignes groups travail */
-tr.row-group-travail td {
-  background: rgba(99,102,241,0.08) !important;
-  color: var(--a-p2) !important;
-  border-bottom-color: rgba(99,102,241,0.3) !important;
-  font-weight: 600 !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   SCROLLBAR
-   ══════════════════════════════════════════════════════════ */
-* {
-  scrollbar-width: thin !important;
-  scrollbar-color: rgba(99,102,241,0.3) rgba(255,255,255,0.02) !important;
-}
-
-*::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
-*::-webkit-scrollbar-track { background: rgba(255,255,255,0.02) !important; }
-*::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3) !important; border-radius: 3px !important; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5) !important; }
-
-.sidebar-main .sidebar-content::-webkit-scrollbar { display: none !important; }
-
-/* ══════════════════════════════════════════════════════════
-   ICÔNE ACTIVE SIDEBAR — force blanc/violet visible
-   ══════════════════════════════════════════════════════════ */
-
-/* Tous SVG dans sidebar → couleur claire par défaut */
-.aside-primary svg,
-.aside-primary .svg-icon svg,
-.aside-primary i,
-.aside-primary span[class*="mdi"],
-.aside-primary span[class*="icon"] {
-  color: rgba(203,213,225,0.85) !important;
-  fill: rgba(203,213,225,0.85) !important;
-  transition: color 0.2s ease, fill 0.2s ease !important;
-}
-
-/* Bouton actif → violet vif */
-.aside-primary .nav-link.btn.btn-icon.active svg,
-.aside-primary .nav-link.btn.btn-icon.active .svg-icon svg,
-.aside-primary .nav-link.btn.btn-icon.active i,
-.aside-primary .nav-link.active svg,
-.aside-primary .active svg {
-  color: #a5b4fc !important;
-  fill: #a5b4fc !important;
-}
-
-/* Hover → violet clair */
-.aside-primary .nav-link.btn.btn-icon:hover svg,
-.aside-primary .nav-link.btn.btn-icon:hover .svg-icon svg,
-.aside-primary .nav-link.btn.btn-icon:hover i {
-  color: #c7d2fe !important;
-  fill: #c7d2fe !important;
-  filter: drop-shadow(0 0 4px rgba(99,102,241,0.4)) !important;
-}
-
-/* Onglet messagerie / message (icône spécifique) */
-.aside-primary [id*="message"] .nav-link,
-.aside-primary [id*="msg"] .nav-link,
-.aside-primary .nav-link[href*="message"],
-.aside-primary .aside-item-btn:has(.nav-link.active) {
-  background: rgba(99,102,241,0.22) !important;
-  border-radius: 10px !important;
-}
-
-.aside-primary .aside-item-btn:has(.nav-link.active) svg,
-.aside-primary .aside-item-btn:has(.nav-link.active) i {
-  color: #a5b4fc !important;
-  fill: #a5b4fc !important;
-}
-
-/* ══════════════════════════════════════════════════════════
-   ANIMATIONS GLOBALES
-   ══════════════════════════════════════════════════════════ */
-
-/* Keyframes */
-@keyframes artis-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes artis-fade-left {
-  from { opacity: 0; transform: translateX(12px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes artis-panel-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes artis-scale-in {
-  from { opacity: 0; transform: scale(0.94); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes artis-slide-right {
-  from { opacity: 0; transform: translateX(-10px); }
-  to   { opacity: 1; transform: translateX(0); }
+/* La grille de widgets profite de la hauteur dispo */
+#my-home-page #widget_container_modal {
+  min-height: 100% !important;
 }
 
-@keyframes artis-shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+/* Zone éditable compte rendu : transition + anneau focus (bordure repos en §3) */
+.editor-artis.editor-artis-inline {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
-
-@keyframes artis-spin {
-  to { transform: rotate(360deg); }
+.editor-artis.editor-artis-inline:focus,
+.editor-artis.editor-artis-inline:focus-within {
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
 }
 
-@keyframes artis-pulse-border {
-  0%, 100% { border-color: rgba(99,102,241,0.2); }
-  50%       { border-color: rgba(99,102,241,0.5); }
-}
+/* ══ ANIMATIONS GLOBALES (les 2 thèmes) ═════════════════════ */
 
 /* ── Transitions universelles sur éléments interactifs ──── */
 a, button, .btn, .nav-link, .menu-link,
@@ -2735,10 +1030,9 @@ input, select, textarea, .form-control,
 .menu-item:nth-child(7)  { animation-delay: 0.30s !important; }
 .menu-item:nth-child(8)  { animation-delay: 0.35s !important; }
 
-/* ── Hover: léger lift sur cartes ───────────────────────── */
+/* ── Hover: léger lift sur cartes (ombre dark en §3) ────── */
 .card:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.45) !important;
 }
 
 /* PAS de lift sur le gros bloc de fond de l'EDT / planning (gêne au survol) */
@@ -2747,7 +1041,6 @@ body.page-ccPlanningV2 .card:hover,
 .card:has(.planning-event):hover,
 .card:has(.table-grid):hover {
   transform: none !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.35) !important;
 }
 
 /* ── Click press feedback ────────────────────────────────── */
@@ -2759,23 +1052,7 @@ button:active,
   transition: transform 0.08s ease !important;
 }
 
-/* ── Skeleton loader (si Artis injecte des placeholders) ── */
-.skeleton,
-[class*="skeleton"],
-[class*="placeholder"] {
-  background: linear-gradient(
-    90deg,
-    rgba(99,102,241,0.06) 25%,
-    rgba(99,102,241,0.14) 50%,
-    rgba(99,102,241,0.06) 75%
-  ) !important;
-  background-size: 800px 100% !important;
-  animation: artis-shimmer 1.6s infinite linear !important;
-  border-radius: 6px !important;
-  color: transparent !important;
-}
-
-/* ── Focus ring visible ─────────────────────────────────── */
+/* ── Focus ring visible (accessibilité — les 2 thèmes) ───── */
 :focus-visible {
   outline: 2px solid rgba(99,102,241,0.5) !important;
   outline-offset: 2px !important;
@@ -2790,239 +1067,1841 @@ button:active,
   }
 }
 
-/* ── Date range picker (sélecteur de semaine / période EDT) ── */
-.daterangepicker {
-  background: rgba(13,13,38,0.97) !important;
-  backdrop-filter: blur(12px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
-  border: 1px solid rgba(99,102,241,0.25) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.55) !important;
-  color: #e2e8f0 !important;
-}
-.daterangepicker::before,
-.daterangepicker::after { display: none !important; }
-
-/* Liste des raccourcis (Aujourd'hui, Cette semaine…) */
-.daterangepicker .ranges ul { background: transparent !important; }
-.daterangepicker .ranges li {
-  color: rgba(203,213,225,0.9) !important;
-  background: transparent !important;
-  border-radius: 8px !important;
-  transition: background .15s ease, color .15s ease !important;
-}
-.daterangepicker .ranges li:hover {
-  background: rgba(99,102,241,0.15) !important;
-  color: #a5b4fc !important;
-}
-.daterangepicker .ranges li.active {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  color: #fff !important;
+/* ── Overlay bascule de thème (les 2 thèmes — conteneur stylé inline
+   par le JS, seule l'animation du spinner vit ici) ─────────── */
+.artis-switch-spinner {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  border: 3px solid rgba(99,102,241,0.25) !important;
+  border-top-color: #6366f1 !important;
+  animation: artis-switch-spin 0.8s linear infinite !important;
 }
 
-/* En-têtes calendrier + jours de la semaine */
-.daterangepicker .calendar-table {
-  background: transparent !important;
-  border: none !important;
-}
-.daterangepicker .calendar-table table,
-.daterangepicker table.table-condensed { background: transparent !important; }
-.daterangepicker th,
-.daterangepicker .month { color: #cbd5e1 !important; }
+@keyframes artis-switch-spin { to { transform: rotate(360deg); } }
 
-/* Cellules de jours */
-.daterangepicker td {
-  background: transparent !important;
-  color: #e2e8f0 !important;
-  border-radius: 8px !important;
-}
-.daterangepicker td.available:hover,
-.daterangepicker th.available:hover {
-  background: rgba(99,102,241,0.18) !important;
-  color: #a5b4fc !important;
-}
-.daterangepicker td.off,
-.daterangepicker td.off.in-range,
-.daterangepicker td.off.start-date,
-.daterangepicker td.off.end-date {
-  background: transparent !important;
-  color: rgba(148,163,184,0.45) !important;
-}
-.daterangepicker td.in-range {
-  background: rgba(99,102,241,0.15) !important;
-  color: #e2e8f0 !important;
-}
-.daterangepicker td.active,
-.daterangepicker td.active:hover,
-.daterangepicker td.start-date,
-.daterangepicker td.end-date {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  color: #fff !important;
-}
-.daterangepicker td.today:not(.active) {
-  box-shadow: inset 0 0 0 1px rgba(129,140,248,0.6) !important;
+/* ════════════════════════════════════════════════════════════
+   §2 THÈME CLAIR — couleurs NATIVES Artis, AUCUN recolor.
+   Seules la structure et les animations du §1 s'appliquent.
+   ════════════════════════════════════════════════════════════ */
+html.artis-light { color-scheme: light; }
+
+/* Sécurité : jamais de canvas dark en clair (le JS ne le crée pas) */
+html.artis-light #artis-app-canvas { display: none !important; }
+
+/* Feedback hover neutre sur la sidebar native (bleu Artis) :
+   voile blanc translucide — pas un recolor, juste l'état hover */
+html.artis-light .aside-primary .nav-link.btn.btn-icon:hover {
+  background: rgba(255,255,255,0.16) !important;
 }
 
-/* Flèches mois précédent / suivant */
-.daterangepicker .prev span,
-.daterangepicker .next span { border-color: #a5b4fc !important; }
-
-/* Barre de boutons */
-.daterangepicker .drp-buttons {
-  border-top: 1px solid rgba(99,102,241,0.2) !important;
+/* Flyout menu : fond OPAQUE en clair (le panel flotte par-dessus le contenu,
+   un fond transparent laisse voir la page derrière pendant le slide).
+   Exclu sur l'accueil où la bande vide doit rester transparente. */
+html.artis-light:not(.artis-page-entree) .aside-secondary {
+  background: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 4px 0 24px rgba(15,23,42,0.12) !important;
 }
-.daterangepicker .drp-selected { color: #94a3b8 !important; }
-.daterangepicker .drp-buttons .btn-default {
-  background: rgba(99,102,241,0.12) !important;
-  border: 1px solid rgba(99,102,241,0.3) !important;
-  color: #cbd5e1 !important;
-}
-.daterangepicker .drp-buttons .btn-primary {
-  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
-  border: none !important;
-  color: #fff !important;
+html.artis-light:not(.artis-page-entree) .aside-secondary .aside-workspace,
+html.artis-light:not(.artis-page-entree) .aside-secondary .tab-content {
+  background: #ffffff !important;
 }
 
-/* Champs heure éventuels */
-.daterangepicker select,
-.daterangepicker .calendar-time select {
-  background: rgba(15,15,40,0.9) !important;
-  color: #e2e8f0 !important;
-  border: 1px solid rgba(99,102,241,0.3) !important;
+/* ════════════════════════════════════════════════════════════
+   §3 THÈME SOMBRE — html:not(.artis-light) { … }
+   Tout le theming couleur. Inactif quand html.artis-light.
+   (CSS nesting — Chromium 120+)
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Variables + base page ─────────────────────────────────── */
+html:not(.artis-light) {
+  --a-bg:      #181836;
+  --a-s1:      #1e1e44;
+  --a-s2:      #23234e;
+  --a-s3:      #292957;
+  --a-border:  rgba(99,102,241,0.2);
+  --a-p:       #6366f1;
+  --a-p2:      #818cf8;
+  --a-text:    #e2e8f0;
+  --a-muted:   #94a3b8;
+  --a-green:   #10b981;
+  --a-blur:    blur(12px) saturate(140%);   /* 20px→12px : backdrop-filter très lourd GPU */
+  color-scheme: dark;
+
+  /* Fond explicite sur html + body pour écraser tout gris */
+  & { background: var(--a-bg) !important; color: var(--a-text) !important; }
+  body { background: var(--a-bg) !important; color: var(--a-text) !important; }
+  body:not(.login-page) { background: var(--a-bg) !important; }
+
+  /* ── PAGE CONTAINER — fond sombre explicite partout ──────── */
+  .page-container,
+  .page-content,
+  #page-content,
+  .aside,
+  .aside-extended,
+  .content,
+  .content-inner,
+  .wrapper,
+  #wrapper,
+  .main-content,
+  #main-content,
+  .app-content,
+  #app-content,
+  [id*="kt_content"],
+  [id*="kt_wrapper"],
+  [id*="kt_post"],
+  [class*="page-content"],
+  [class*="content-wrapper"],
+  [class*="main-wrapper"] {
+    background: transparent !important;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Page Artis : class body spécifique (ex: body.page-ccWorkflowManager) */
+  [class*="page-cc"],
+  [class*="page-artis"],
+  [class*="page-workflow"],
+  [class*="page-planning"] {
+    background: var(--a-bg) !important;
+  }
+
+  /* Zone contenu workflow / tâches — fond sombre explicite */
+  .panel-body,
+  .panel-content,
+  .panel-default,
+  .panel-default > .panel-heading,
+  .panel-default > .panel-body,
+  [class*="panel-"] {
+    background: transparent !important;
+    border-color: rgba(99,102,241,0.15) !important;
+    color: var(--a-text) !important;
+  }
+
+  /* Tabs sans fond */
+  .tab-content-no-tab [id^="tab-"] {
+    background: transparent !important;
+    border-color: rgba(99,102,241,0.15) !important;
+  }
+
+  /* ── FORM wrappers (Artis wrappe pages dans <form>) ──────── */
+  body form,
+  body > form > div,
+  body > form > div > div,
+  body > form > div > div > div,
+  body > form div,
+  body > form section,
+  body > form article,
+  body > form main,
+  body > form aside:not(.aside-primary):not(.aside-secondary),
+  body > form header,
+  body > form footer {
+    background: transparent !important;
+    color: var(--a-text) !important;
+  }
 }
 
-/* ══════════════════════════════════════════════════════════
-   TINYMCE 6 INLINE — éditeur « Commentaire pour le client »
-   (#ita_messclt et autres .editor-artis-inline)
-   La barre d'outils flottante (.tox-tinymce-inline) s'affichait
-   transparente PAR-DESSUS le titre du bandeau → illisible.
-   → barre solide dark glass, intégrée visuellement au bandeau.
-   ══════════════════════════════════════════════════════════ */
+/* ── Sidebar — couleurs ─────────────────────────────────────── */
+html:not(.artis-light) {
+  .aside-primary,
+  .bg-artis-default-color {
+    background: linear-gradient(180deg, #1c1c42 0%, #181838 100%) !important;
+    border-right: 1px solid rgba(99,102,241,0.25) !important;
+    box-shadow: 2px 0 24px rgba(0,0,0,0.6), inset -1px 0 0 rgba(99,102,241,0.12) !important;
+  }
 
-/* Conteneur flottant (ancré par TinyMCE au-dessus de l'éditeur).
-   display forcé : TinyMCE masque la barre au blur (style inline display:none),
-   l'utilisateur la veut affichée EN PERMANENCE. Exception assumée à la règle
-   « ne pas forcer display » : barre décorative, ne bloque aucune interaction
-   (≠ overlay de chargement). Position gérée par placeToolbar() (JS). */
-.tox.tox-tinymce-inline {
-  display: flex !important;
-  z-index: 2147483200 !important;
-  border: none !important;
-  background: transparent !important;
-}
+  /* Logo zone */
+  .aside-primary .aside-logo {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(99,102,241,0.12) !important;
+  }
 
-/* La barre elle-même : fond SOLIDE (recouvre proprement le titre) */
-.tox.tox-tinymce-inline .tox-editor-header {
-  background: linear-gradient(160deg, #1d1d46 0%, #15153a 100%) !important;
-  border: 1px solid rgba(99,102,241,0.4) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 10px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-  padding: 3px 6px !important;
-  overflow: hidden !important;
-}
+  /* Boutons icônes — léger fond pour les détacher du fond */
+  .aside-primary .nav-link.btn.btn-icon {
+    background: rgba(99,102,241,0.08) !important;
+    border: 1px solid rgba(99,102,241,0.08) !important;
+    color: rgba(203,213,225,0.85) !important;
+  }
 
-/* Fonds internes (rayures grises par défaut) → transparents */
-.tox .tox-toolbar-overlord,
-.tox .tox-toolbar,
-.tox .tox-toolbar__primary,
-.tox .tox-toolbar__overflow {
-  background: transparent !important;
-  background-image: none !important;
-}
-.tox .tox-toolbar__group {
-  border-color: rgba(99,102,241,0.18) !important;
-  padding: 0 4px !important;
-}
+  .aside-primary .nav-link.btn.btn-icon:hover {
+    background: rgba(99,102,241,0.16) !important;
+    color: #fff !important;
+    box-shadow:
+      0 0 0 1px rgba(129,140,248,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  }
 
-/* Boutons de la barre */
-.tox .tox-tbtn {
-  background: transparent !important;
-  border-radius: 8px !important;
-  color: #e2e8f0 !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease !important;
-}
-.tox .tox-tbtn svg { fill: #cbd5e1 !important; }
-.tox .tox-tbtn:hover,
-.tox .tox-tbtn:focus {
-  background: rgba(99,102,241,0.22) !important;
-}
-.tox .tox-tbtn:hover svg { fill: #fff !important; }
-.tox .tox-tbtn--enabled,
-.tox .tox-tbtn--enabled:hover {
-  background: rgba(99,102,241,0.35) !important;
-}
-.tox .tox-tbtn--enabled svg { fill: #c7d2fe !important; }
-.tox .tox-tbtn--disabled svg,
-.tox .tox-tbtn--disabled:hover svg { fill: rgba(148,163,184,0.35) !important; }
-.tox .tox-tbtn__select-label { color: #e2e8f0 !important; }
-.tox .tox-tbtn__select-chevron svg { fill: #94a3b8 !important; }
-.tox .tox-split-button:hover { box-shadow: none !important; }
+  .aside-primary .nav-link.btn.btn-icon.active {
+    background: rgba(99,102,241,0.22) !important;
+    color: var(--a-p2) !important;
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.3) !important;
+  }
 
-/* Menus / popups TinyMCE (listes, overflow « … », couleurs) — body-level .tox-tinymce-aux */
-.tox .tox-menu,
-.tox .tox-pop,
-.tox .tox-pop__dialog,
-.tox .tox-collection {
-  background-color: #15153a !important;
-  border: 1px solid rgba(99,102,241,0.35) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 14px 40px rgba(0,0,0,0.6) !important;
-  color: #e2e8f0 !important;
-}
-.tox .tox-pop::before,
-.tox .tox-pop::after { display: none !important; }   /* flèche claire du popover */
-.tox .tox-collection__item {
-  color: #e2e8f0 !important;
-  border-radius: 8px !important;
-}
-.tox .tox-collection__item svg { fill: #cbd5e1 !important; }
-.tox .tox-collection__item--active,
-.tox .tox-collection__item--enabled,
-.tox .tox-collection__item:hover {
-  background: rgba(99,102,241,0.22) !important;
-  color: #fff !important;
-}
-.tox .tox-collection__item-label,
-.tox .tox-collection__item-accessory { color: inherit !important; }
+  /* SVG icons color */
+  .aside-primary .svg-icon-white {
+    color: rgba(148,163,184,0.65) !important;
+  }
+  .aside-primary .nav-link.btn.btn-icon:hover .svg-icon-white,
+  .aside-primary .nav-link.btn.btn-icon.active .svg-icon-white {
+    color: var(--a-p2) !important;
+  }
 
-/* ── Modal « Ma page d'accueil » (#my-home-page, widgets grid-stack) ──
-   La .modal-body.modal-max-height plafonnait à 75vh → pop-up tronqué.
-   On l'ouvre sur toute la hauteur de l'écran. */
-#my-home-page .modal-dialog {
-  width: 96vw !important;
-  max-width: 1600px !important;
-  height: calc(100vh - 24px) !important;
-  max-height: calc(100vh - 24px) !important;
-  margin: 12px auto !important;
-  display: flex !important;
-}
-#my-home-page .modal-content {
-  height: 100% !important;
-  max-height: none !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-#my-home-page .modal-body,
-#my-home-page .modal-body.modal-max-height {
-  max-height: none !important;
-  flex: 1 1 auto !important;
-  overflow: auto !important;
-}
-/* La grille de widgets profite de la hauteur dispo */
-#my-home-page #widget_container_modal {
-  min-height: 100% !important;
+  /* Badges — pill allongé */
+  .aside-primary .badge {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    color: #fff !important;
+    border-radius: 99px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.5), 0 0 0 1px rgba(255,255,255,0.1) !important;
+    min-width: 20px !important;
+    height: 17px !important;
+    line-height: 17px !important;
+    padding: 0 6px !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  /* Avatar */
+  .aside-primary .profile-picture.img-sm {
+    border: 2px solid rgba(99,102,241,0.4) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+  }
+
+  /* Tous SVG dans sidebar → couleur claire par défaut */
+  .aside-primary svg,
+  .aside-primary .svg-icon svg,
+  .aside-primary i,
+  .aside-primary span[class*="mdi"],
+  .aside-primary span[class*="icon"] {
+    color: rgba(203,213,225,0.85) !important;
+    fill: rgba(203,213,225,0.85) !important;
+    transition: color 0.2s ease, fill 0.2s ease !important;
+  }
+
+  /* Bouton actif → violet vif */
+  .aside-primary .nav-link.btn.btn-icon.active svg,
+  .aside-primary .nav-link.btn.btn-icon.active .svg-icon svg,
+  .aside-primary .nav-link.btn.btn-icon.active i,
+  .aside-primary .nav-link.active svg,
+  .aside-primary .active svg {
+    color: #a5b4fc !important;
+    fill: #a5b4fc !important;
+  }
+
+  /* Hover → violet clair */
+  .aside-primary .nav-link.btn.btn-icon:hover svg,
+  .aside-primary .nav-link.btn.btn-icon:hover .svg-icon svg,
+  .aside-primary .nav-link.btn.btn-icon:hover i {
+    color: #c7d2fe !important;
+    fill: #c7d2fe !important;
+    filter: drop-shadow(0 0 4px rgba(99,102,241,0.4)) !important;
+  }
+
+  /* Onglet messagerie / message (icône spécifique) */
+  .aside-primary [id*="message"] .nav-link,
+  .aside-primary [id*="msg"] .nav-link,
+  .aside-primary .nav-link[href*="message"],
+  .aside-primary .aside-item-btn:has(.nav-link.active) {
+    background: rgba(99,102,241,0.22) !important;
+    border-radius: 10px !important;
+  }
+
+  .aside-primary .aside-item-btn:has(.nav-link.active) svg,
+  .aside-primary .aside-item-btn:has(.nav-link.active) i {
+    color: #a5b4fc !important;
+    fill: #a5b4fc !important;
+  }
 }
 
-/* Zone éditable : focus visible propre (anneau indigo) */
-.editor-artis.editor-artis-inline {
-  border: 1px solid rgba(99,102,241,0.35) !important;
-  border-radius: 10px !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+/* ── Panel secondaire + search + menu — couleurs ───────────── */
+html:not(.artis-light) {
+  .aside-secondary {
+    background: var(--a-s1) !important;
+    border-right: 1px solid rgba(99,102,241,0.18) !important;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.5) !important;
+  }
+
+  .aside-workspace { background: transparent !important; }
+
+  /* Search bar (Ctrl+K) */
+  .global-search-button-container {
+    background: rgba(99,102,241,0.06) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.15) !important;
+    padding: 10px 12px !important;
+  }
+
+  .global-search-button-shortcut {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    color: var(--a-muted) !important;
+  }
+
+  .global-search-button-shortcut:hover {
+    background: rgba(99,102,241,0.14) !important;
+    border-color: rgba(99,102,241,0.45) !important;
+    color: var(--a-text) !important;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.18), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  }
+
+  /* Loupe pulse léger au hover */
+  .global-search-button-shortcut:hover .svg-icon { color: var(--a-p2) !important; }
+
+  .global-search-button-shortcut .shortcut-button {
+    background: rgba(99,102,241,0.15) !important;
+    border: 1px solid rgba(99,102,241,0.25) !important;
+    border-radius: 4px !important;
+    color: var(--a-muted) !important;
+    font-size: 0.7rem !important;
+    padding: 1px 5px !important;
+  }
+
+  .global-search-button-shortcut .svg-icon {
+    color: var(--a-muted) !important;
+  }
+
+  /* Menu principal (aside nav tabs) */
+  .tab-content,
+  .tab-pane {
+    background: transparent !important;
+  }
+
+  .menu.menu-column,
+  .menu_ARTIS_NET,
+  [class*="menu_"] {
+    background: transparent !important;
+  }
+
+  .menu-item {
+    background: transparent !important;
+  }
+
+  .menu-link {
+    background: transparent !important;
+    color: rgba(203,213,225,0.8) !important;
+  }
+
+  .menu-link:hover,
+  .menu-item:hover > .menu-link {
+    background: rgba(99,102,241,0.12) !important;
+    color: var(--a-p2) !important;
+  }
+
+  .menu-item.here > .menu-link,
+  .menu-item.active > .menu-link,
+  .menu-link.active {
+    background: rgba(99,102,241,0.18) !important;
+    color: var(--a-p2) !important;
+    font-weight: 600 !important;
+  }
+
+  .menu-title { color: inherit !important; }
+
+  .menu-icon {
+    color: var(--a-muted) !important;
+    opacity: 0.75 !important;
+  }
+
+  .menu-link:hover .menu-icon,
+  .menu-link.active .menu-icon {
+    color: var(--a-p2) !important;
+    opacity: 1 !important;
+  }
+
+  .menu-arrow {
+    color: var(--a-muted) !important;
+    opacity: 0.5 !important;
+  }
+
+  .menu-sub,
+  .menu-sub-accordion {
+    background: transparent !important;
+    border-left: 1px solid rgba(99,102,241,0.12) !important;
+  }
+
+  .menu-sub .menu-link {
+    color: rgba(148,163,184,0.8) !important;
+  }
+
+  .menu-sub .menu-link:hover {
+    color: var(--a-p2) !important;
+    background: rgba(99,102,241,0.1) !important;
+  }
+
+  /* Favoris + Checklist : tint + glow au hover */
+  #kt_aside_nav_tab_FAVORIS .menu-link:hover,
+  #kt_aside_nav_tab_FAVORIS a:hover,
+  #kt_aside_nav_tab_FAVORIS li:hover,
+  [id*="FAVORIS"] .menu-link:hover,
+  [id*="checklist"] li:hover,
+  [id*="checklist"] a:hover,
+  [class*="checklist"] li:hover,
+  [class*="checklist"] a:hover,
+  .favoris-item:hover,
+  .checklist-item:hover {
+    background: rgba(99,102,241,0.14) !important;
+    color: var(--a-p2) !important;
+    box-shadow: inset 3px 0 0 rgba(129,140,248,0.7), 0 2px 12px rgba(99,102,241,0.15) !important;
+  }
+
+  /* Étoile favori : ambre au hover */
+  #kt_aside_nav_tab_FAVORIS .menu-link:hover .mdi,
+  #kt_aside_nav_tab_FAVORIS li:hover .mdi,
+  [id*="FAVORIS"] .menu-link:hover [class*="star"] {
+    color: #fbbf24 !important;
+  }
 }
-.editor-artis.editor-artis-inline:focus,
-.editor-artis.editor-artis-inline:focus-within {
-  outline: none !important;
-  border-color: rgba(99,102,241,0.65) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+
+/* ── Navbar / breadcrumb / page header / tabs — couleurs ───── */
+html:not(.artis-light) {
+  .navbar {
+    background: rgba(8,8,24,0.96) !important;
+    backdrop-filter: var(--a-blur) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.15) !important;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.4) !important;
+    color: var(--a-text) !important;
+    z-index: 100 !important;
+  }
+
+  .navbar * { color: var(--a-text) !important; }
+
+  .navbar-brand img { filter: brightness(1.1) !important; }
+
+  .breadcrumb-line {
+    background: transparent !important;
+  }
+
+  .breadcrumb {
+    background: transparent !important;
+  }
+
+  .breadcrumb-item { color: var(--a-muted) !important; font-size: 0.8rem !important; }
+  .breadcrumb-item a { color: var(--a-muted) !important; transition: color 0.2s !important; }
+  .breadcrumb-item a:hover { color: var(--a-p2) !important; }
+  .breadcrumb-item.active { color: var(--a-text) !important; }
+  .breadcrumb-item + .breadcrumb-item::before { color: rgba(99,102,241,0.35) !important; }
+
+  .page-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(99,102,241,0.15) !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Bandeau STICKY (titre intervention + onglets Dit/Compte-rendu/Tâches…) :
+     doit rester OPAQUE — un sticky transparent laisse le contenu apparaître
+     derrière le titre au scroll (régression du strip global de fonds). */
+  .page-data-header.sticky-top {
+    background: linear-gradient(160deg, #1b1b42 0%, #15153a 100%) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.3) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
+  }
+
+  .page-header h1, .page-header h2, .page-header h3 {
+    color: var(--a-text) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+  }
+
+  /* TABS — nav-tabs */
+  .nav-tabs {
+    border-bottom: 1px solid rgba(99,102,241,0.2) !important;
+    background: transparent !important;
+  }
+
+  .nav-tabs .nav-link,
+  .nav-tabs li > a {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    color: var(--a-muted) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    padding: 10px 18px !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+  }
+
+  .nav-tabs .nav-link:hover { color: var(--a-text) !important; background: rgba(99,102,241,0.06) !important; }
+  .nav-tabs .nav-link.active, .nav-tabs li.active > a {
+    border-bottom-color: var(--a-p) !important;
+    color: var(--a-text) !important;
+    font-weight: 600 !important;
+  }
+}
+
+/* ── Planning — couleurs ───────────────────────────────────── */
+html:not(.artis-light) {
+  /* Container principal */
+  #planning-container {
+    background: transparent !important;
+  }
+
+  /* Zone calendrier — border top bleu Artis */
+  #calendarContent {
+    border-top-color: rgba(99,102,241,0.2) !important;
+    background: transparent !important;
+  }
+
+  /* !! SOURCE PRINCIPALE DU BLANC !! */
+  /* planning.css: div.grid { background: #FFFFFF } */
+  div.grid {
+    background: rgba(10,10,28,0.95) !important;
+  }
+
+  /* Table horaires — planning.css: background: #E8EEF7 */
+  .table-horaires {
+    background: rgba(99,102,241,0.08) !important;
+    width: 100% !important;
+  }
+
+  .table-horaires tbody tr td {
+    background: transparent !important;
+    color: var(--a-p2) !important;
+    border-color: rgba(99,102,241,0.08) !important;
+  }
+
+  /* Plage hors-travail — planning.css: background: #eee */
+  .off-working-plage {
+    background: rgba(99,102,241,0.04) !important;
+  }
+  .off-working-plage:hover {
+    background: rgba(99,102,241,0.09) !important;
+  }
+
+  /* Noms techniciens — planning.css: color: #446688 */
+  .tech-group-name {
+    color: var(--a-p2) !important;
+    border-bottom-color: rgba(99,102,241,0.25) !important;
+  }
+
+  /* Table grille planning */
+  table.table-grid {
+    background: var(--a-s1) !important;
+  }
+
+  table.table-grid tbody tr td {
+    background: transparent !important;
+    border-color: rgba(99,102,241,0.08) !important;
+    color: var(--a-text) !important;
+    transition: background 0.12s ease !important;
+  }
+
+  /* Striping PERMANENT — différence de couleur toujours visible */
+  table.table-grid tbody tr:nth-child(odd) td {
+    background: rgba(99,102,241,0.05) !important;
+  }
+  table.table-grid tbody tr:nth-child(even) td {
+    background: rgba(99,102,241,0.015) !important;
+  }
+
+  /* Hover = un cran plus marqué */
+  table.table-grid tbody tr:hover td {
+    background: rgba(99,102,241,0.11) !important;
+  }
+
+  /* ── BLOCKS PLANNING (.planning-event) — harmonisés au theme ── */
+  .planning-event .panel-planning {
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow:
+      0 2px 8px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      inset 0 0 0 1px rgba(255,255,255,0.08) !important;
+    background-image: none !important;
+    /* Léger overlay sombre pour fondre la couleur Artis dans le theme */
+    background-blend-mode: normal !important;
+    color: #fff !important;
+    overflow: hidden !important;
+  }
+
+  /* Voile dégradé pour cohérence + profondeur (sans masquer la couleur) */
+  .planning-event .panel-planning::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0.10) 100%) !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+  }
+
+  /* Saturation/luminosité ajustée → couleurs vives mais pas criardes sur dark */
+  .planning-event .panel-planning {
+    filter: saturate(0.85) brightness(0.92) !important;
+  }
+
+  .planning-event:hover .panel-planning {
+    opacity: 0.96 !important;
+    filter: saturate(1.05) brightness(1.08) !important;
+    box-shadow:
+      0 10px 30px rgba(0,0,0,0.6),
+      0 0 0 1.5px rgba(129,140,248,0.6),
+      0 0 28px rgba(99,102,241,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  }
+
+  /* Texte lisible sur tout bloc coloré */
+  .planning-event .panel-planning .panel-body,
+  .planning-event .panel-planning .panel-heading,
+  .planning-event .panel-planning span,
+  .planning-event .panel-planning i {
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4) !important;
+  }
+
+  .planning-event .panel-planning .panel-heading {
+    border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+  }
+
+  /* Label nature (badge type) → pill propre */
+  .planning-event .label.label-nature {
+    border-radius: 5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    background: rgba(0,0,0,0.22) !important;
+    color: #fff !important;
+    backdrop-filter: blur(2px) !important;
+  }
+
+  /* Bloc à planifier — dashed harmonisé indigo */
+  .planning-event.is-a-planifier .panel-planning {
+    border: 2px dashed rgba(129,140,248,0.7) !important;
+    background: rgba(99,102,241,0.12) !important;
+    filter: none !important;
+  }
+
+  /* Hover ajout TNP */
+  [data-add-tnp-action=true]:hover {
+    background: rgba(245,158,11,0.1) !important;
+  }
+
+  /* ── CONTEXT MENUS PLANNING — bg-grey-800 déjà dark, amélioration ── */
+  .planning-context-menu.dropdown-menu,
+  .planning-context-menu {
+    background: #181840 !important;
+    border: 1px solid rgba(99,102,241,0.25) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+    color: var(--a-text) !important;
+    overflow: hidden !important;
+  }
+
+  .planning-context-menu .dropdown-header {
+    color: var(--a-muted) !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    padding: 8px 16px 4px !important;
+  }
+
+  .planning-context-menu .dropdown-item {
+    background: transparent !important;
+    color: rgba(203,213,225,0.85) !important;
+    font-size: 0.85rem !important;
+    padding: 7px 14px !important;
+    border-radius: 6px !important;
+    margin: 1px 4px !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    cursor: pointer !important;
+  }
+
+  .planning-context-menu .dropdown-item:hover {
+    background: rgba(99,102,241,0.15) !important;
+    color: var(--a-p2) !important;
+  }
+
+  .planning-context-menu .dropdown-item.disabled {
+    color: rgba(148,163,184,0.35) !important;
+    cursor: not-allowed !important;
+  }
+
+  .planning-context-menu .img-background {
+    position: absolute !important;
+    right: 12px !important;
+    top: 8px !important;
+    opacity: 0.06 !important;
+    font-size: 3rem !important;
+    color: var(--a-p2) !important;
+    pointer-events: none !important;
+  }
+}
+
+/* ── Carte profil + array-content — couleurs ───────────────── */
+html:not(.artis-light) {
+  #thumbnail,
+  #thumbnail.bg-blue,
+  .thumbnail.bg-blue,
+  .thumbnail-component.bg-blue {
+    background: linear-gradient(160deg, #1e1e48 0%, #181838 100%) !important;
+    background-color: #1e1e44 !important;
+    border: 1px solid rgba(99,102,241,0.22) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    --bs-table-bg: transparent !important;
+    padding: 18px 16px !important;
+  }
+
+  /* Zone photo + glow radial derrière la PP */
+  #thumbnail .thumb,
+  #thumbnail .frozen-dreams-gradient {
+    background: radial-gradient(circle at 50% 42%, rgba(129,140,248,0.4) 0%, rgba(99,102,241,0.18) 35%, transparent 68%) !important;
+    border-radius: 14px !important;
+    padding: 8px !important;
+    position: relative !important;
+  }
+
+  /* Avatar — ring + glow */
+  #thumbnail .photo-content,
+  #thumbnail .thumb img {
+    border-radius: 12px !important;
+    border: 2px solid rgba(255,255,255,0.15) !important;
+    box-shadow: 0 0 0 3px rgba(129,140,248,0.45), 0 0 26px rgba(99,102,241,0.5), 0 6px 18px rgba(0,0,0,0.4) !important;
+  }
+
+  /* Placeholder initiales (JR) */
+  #thumbnail .no-photo {
+    color: #fff !important;
+    text-shadow: 0 2px 8px rgba(99,102,241,0.6) !important;
+  }
+
+  /* Texte carte */
+  #thumbnail .caption h6,
+  #thumbnail .caption h6 small,
+  #thumbnail .checkbox-label { color: var(--a-text) !important; }
+  #thumbnail .caption h6 small { color: var(--a-muted) !important; }
+
+  /* Boutons ronds roses → garder accent mais cohérence (pp profil/aide/logout) */
+  #thumbnail .list-inline-item .btn.bg-pink-400 {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    box-shadow: 0 2px 10px rgba(99,102,241,0.4) !important;
+    color: #fff !important;
+    border: none !important;
+  }
+  #thumbnail .list-inline-item .btn.bg-pink-400:hover {
+    box-shadow: 0 4px 16px rgba(99,102,241,0.6) !important;
+    transform: translateY(-2px) !important;
+  }
+
+  /* Boutons édit/suppr sur la photo */
+  #thumbnail .thumb-upload.btn-warning {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+    border: none !important;
+  }
+  #thumbnail .thumb-delete.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #f87171) !important;
+    border: none !important;
+  }
+
+  /* ── ARRAY CONTENT — tableaux de données ──
+     composants.css: .array-content th { color: #B5B5C3 } */
+  .array-content {
+    background: transparent !important;
+  }
+
+  .array-content table {
+    background: transparent !important;
+    color: var(--a-text) !important;
+  }
+
+  .array-content th {
+    background: rgba(99,102,241,0.12) !important;
+    color: var(--a-muted) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.2) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.07em !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    padding: 8px 6px !important;
+  }
+
+  .array-content td {
+    background: transparent !important;
+    color: var(--a-text) !important;
+    border-color: rgba(99,102,241,0.08) !important;
+    padding: 6px !important;
+    vertical-align: middle !important;
+    transition: background 0.1s ease !important;
+  }
+
+  .array-content tbody tr:nth-child(even) td {
+    background: rgba(99,102,241,0.03) !important;
+  }
+
+  .array-content tbody tr:hover td {
+    background: rgba(99,102,241,0.09) !important;
+  }
+}
+
+/* ── Cards / modals / dropdowns / tooltips — couleurs ──────── */
+html:not(.artis-light) {
+  .card {
+    background: rgba(13,13,38,0.88) !important;
+    backdrop-filter: var(--a-blur) !important;
+    -webkit-backdrop-filter: var(--a-blur) !important;
+    border: 1px solid rgba(99,102,241,0.18) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35) !important;
+    color: var(--a-text) !important;
+  }
+
+  .card:hover {
+    border-color: rgba(99,102,241,0.3) !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.45) !important;
+  }
+
+  /* Planning : pas d'ombre lift sur le gros bloc EDT */
+  body.page-ccPlanningV2 .card:hover,
+  .card:has(#planning-container):hover,
+  .card:has(.planning-event):hover,
+  .card:has(.table-grid):hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35) !important;
+  }
+
+  .card-header {
+    background: rgba(99,102,241,0.1) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.15) !important;
+    color: var(--a-text) !important;
+    font-weight: 600 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+  }
+
+  .card-body { background: transparent !important; color: var(--a-text) !important; }
+
+  .card-footer {
+    background: rgba(0,0,0,0.2) !important;
+    border-top: 1px solid rgba(99,102,241,0.12) !important;
+  }
+
+  /* MODALS */
+  .modal-content {
+    background: rgba(10,10,28,0.97) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.65) !important;
+    color: var(--a-text) !important;
+  }
+
+  .modal-header {
+    background: rgba(99,102,241,0.1) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.15) !important;
+    border-radius: 18px 18px 0 0 !important;
+  }
+
+  .modal-title { color: var(--a-text) !important; font-weight: 600 !important; }
+  .modal-footer { border-top: 1px solid rgba(99,102,241,0.12) !important; }
+  .modal-backdrop { background: rgba(0,0,8,0.8) !important; backdrop-filter: blur(6px) !important; }
+
+  /* Global search modal */
+  #global-search-modal .modal-content { background: rgba(10,10,28,0.98) !important; }
+  #global-search-input {
+    background: transparent !important;
+    border: none !important;
+    color: var(--a-text) !important;
+    font-size: 1rem !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+  }
+  #global-search-input::placeholder { color: rgba(148,163,184,0.5) !important; }
+
+  /* DROPDOWNS génériques */
+  .dropdown-menu:not(.planning-context-menu) {
+    background: #181840 !important;
+    border: 1px solid rgba(99,102,241,0.22) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    color: var(--a-text) !important;
+  }
+
+  .dropdown-menu:not(.planning-context-menu) .dropdown-item {
+    color: rgba(203,213,225,0.85) !important;
+    transition: background 0.15s, color 0.15s !important;
+    border-radius: 6px !important;
+    margin: 1px 4px !important;
+    cursor: pointer !important;
+  }
+
+  .dropdown-menu:not(.planning-context-menu) .dropdown-item:hover {
+    background: rgba(99,102,241,0.15) !important;
+    color: var(--a-p2) !important;
+  }
+
+  .dropdown-header {
+    color: var(--a-muted) !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* Menus flottants body-level (texte noir invisible) */
+  /* Dropdowns/popovers Artis ajoutés en fin de <body> : body > div > a/li */
+  .dropdown-menu a,
+  .dropdown-menu li,
+  .dropdown-menu span,
+  .dropdown-menu label,
+  .dropdown-menu .dropdown-item,
+  .menu-sub-dropdown a,
+  .menu-sub-dropdown span,
+  [class*="dropdown"] a:not(.btn),
+  .popover, .popover-body, .popover *,
+  .tippy-content, .tippy-content *,
+  .ui-menu, .ui-menu *,
+  .select2-results__option,
+  ul[role="listbox"] li,
+  ul[role="menu"] li,
+  ul[role="menu"] a {
+    color: var(--a-text) !important;
+  }
+
+  /* Tooltips Bootstrap */
+  .tooltip .tooltip-inner,
+  .tooltip-inner {
+    background: #1e1e48 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 0.78rem !important;
+    padding: 6px 10px !important;
+  }
+
+  .tooltip .tooltip-arrow::before,
+  .tooltip-arrow::before {
+    border-top-color: #1e1e48 !important;
+    border-bottom-color: #1e1e48 !important;
+    border-left-color: #1e1e48 !important;
+    border-right-color: #1e1e48 !important;
+  }
+
+  /* Tooltip jQuery UI (.ui-tooltip — affichait un bloc bleu brut sur le menu) */
+  .ui-tooltip,
+  .ui-tooltip .ui-tooltip-content,
+  .ui-tooltip-content {
+    background: #1e1e48 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 0.78rem !important;
+    padding: 6px 10px !important;
+  }
+  .ui-tooltip .ui-tooltip-content {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  /* Popover / tooltip container dark */
+  .popover, .tippy-box, .ui-menu {
+    background: #181840 !important;
+    border: 1px solid rgba(99,102,241,0.22) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+
+  /* User menu dropdown */
+  .menu.menu-sub-dropdown {
+    background: #181840 !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    color: var(--a-text) !important;
+  }
+
+  .menu.menu-sub-dropdown .menu-item { background: transparent !important; }
+  .menu.menu-sub-dropdown .menu-link { color: rgba(203,213,225,0.85) !important; font-size: 0.875rem !important; }
+  .menu.menu-sub-dropdown .menu-link:hover { background: rgba(99,102,241,0.12) !important; color: var(--a-p2) !important; }
+  .menu.menu-sub-dropdown .img-background { opacity: 0.05 !important; color: var(--a-p2) !important; }
+
+  /* Menu utilisateur (image profil → dropdown body-level) : texte lisible.
+     Metronic colore .menu-title via menu-title-gray-600 (forte spécificité) → forcer clair. */
+  .menu.menu-sub-dropdown .menu-item .menu-link .menu-title,
+  .menu.menu-sub-dropdown .menu-link .menu-title,
+  .menu.menu-sub-dropdown .menu-title,
+  .menu.menu-sub-dropdown .menu-content span,
+  .menu.menu-sub-dropdown span {
+    color: #e2e8f0 !important;
+  }
+  .menu.menu-sub-dropdown .menu-link:hover .menu-title { color: var(--a-p2) !important; }
+  .menu.menu-sub-dropdown .text-body-secondary,
+  .menu.menu-sub-dropdown .fw-light { color: var(--a-muted) !important; }
+  .menu.menu-sub-dropdown hr { border-color: rgba(99,102,241,0.2) !important; opacity: 1 !important; }
+}
+
+/* ── Inputs / boutons — couleurs ───────────────────────────── */
+html:not(.artis-light) {
+  /* INPUTS / FORMS */
+  .form-control,
+  input[type="text"]:not([class*="no-border"]),
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  select, textarea {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 8px !important;
+    color: var(--a-text) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+  }
+
+  .form-control:focus, input:focus, select:focus, textarea:focus {
+    background: rgba(255,255,255,0.09) !important;
+    border-color: rgba(99,102,241,0.55) !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18) !important;
+    outline: none !important;
+  }
+
+  .form-control::placeholder, input::placeholder, textarea::placeholder {
+    color: rgba(148,163,184,0.45) !important;
+  }
+
+  label, .control-label { color: var(--a-muted) !important; }
+
+  /* Champ filtre tableau */
+  .filtro, input[placeholder="Filtro"],
+  [id*="filter"], [class*="filter-input"] {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 8px !important;
+    color: var(--a-text) !important;
+  }
+
+  /* BUTTONS — ZÉRO BLANC : TOUS les boutons → dark, inline styles inclus */
+  button,
+  .btn,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  button[style],
+  .btn[style] {
+    background: rgba(255,255,255,0.13) !important;
+    background-color: rgba(255,255,255,0.13) !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+    border-radius: 8px !important;
+    color: var(--a-text) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  /* Texte + icônes À L'INTÉRIEUR des boutons (toolbar haut-droite : Insérer DIT,
+     Insérer action, sélecteur de date, engrenage, flèches…) → clairs et lisibles.
+     Artis met souvent .text-dark / couleurs sombres sur ces libellés. */
+  button:not(.btn-primary):not(.btn-info):not(.btn-success) span,
+  button:not(.btn-primary):not(.btn-info):not(.btn-success) i,
+  .btn:not(.btn-primary):not(.btn-info):not(.btn-success) span,
+  .btn:not(.btn-primary):not(.btn-info):not(.btn-success) i,
+  .page-action-button span, .btn-breadcrumb span,
+  .daterangepicker + * span {
+    color: #e2e8f0 !important;
+  }
+  button svg path, .btn svg path { fill: currentColor !important; }
+
+  button:hover,
+  .btn:hover,
+  [role="button"]:hover {
+    background: rgba(99,102,241,0.15) !important;
+    background-color: rgba(99,102,241,0.15) !important;
+    border-color: rgba(99,102,241,0.35) !important;
+    color: var(--a-p2) !important;
+    box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
+  }
+
+  /* Variantes explicitement blanches / claires */
+  .btn-default,
+  .btn-light,
+  .btn-white,
+  .btn-outline-secondary,
+  .btn-outline-light,
+  .btn-outline-default {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 8px !important;
+    color: var(--a-muted) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-default:hover,
+  .btn-light:hover,
+  .btn-white:hover,
+  .btn-outline-secondary:hover,
+  .btn-outline-light:hover,
+  .btn-outline-default:hover {
+    background: rgba(99,102,241,0.15) !important;
+    border-color: rgba(99,102,241,0.35) !important;
+    color: var(--a-p2) !important;
+    box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
+  }
+
+  .btn-primary, .btn-info {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 10px rgba(99,102,241,0.3) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-primary:hover, .btn-info:hover {
+    box-shadow: 0 4px 18px rgba(99,102,241,0.5) !important;
+    transform: translateY(-1px) !important;
+    color: #fff !important;
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #10b981, #34d399) !important;
+    border: none !important; border-radius: 8px !important;
+    color: #fff !important; font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+
+  .btn-secondary, .btn-default, .btn-dark {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
+    color: var(--a-muted) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-secondary:hover, .btn-default:hover, .btn-dark:hover {
+    background: rgba(255,255,255,0.12) !important;
+    color: var(--a-text) !important;
+    box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
+  }
+
+  /* ── Boutons breadcrumb haut-droite (Précédent / Suivant / Fermer)
+     Artis met .text-dark → icônes noires invisibles sur dark.
+     Force couleur claire (svg fill=currentColor) + même taille. ── */
+  .page-action-button,
+  .btn-breadcrumb,
+  .page-action-button.text-dark,
+  .btn-breadcrumb.text-dark,
+  .page-action-button *,
+  .btn-breadcrumb * {
+    color: #f1f5f9 !important;   /* BLANC comme les icônes (texte + flèches + croix) */
+    background: transparent !important;
+    border: none !important;
+  }
+  .page-action-button,
+  .btn-breadcrumb,
+  .page-action-button.text-dark,
+  .btn-breadcrumb.text-dark,
+  .page-action-button[style],
+  .btn-breadcrumb[style] {
+    background: rgba(255,255,255,0.13) !important;   /* rectangle arrondi clair bien visible */
+    border: 1px solid rgba(255,255,255,0.14) !important;
+    border-radius: 8px !important;
+  }
+  .page-action-button .svg-icon svg,
+  .btn-breadcrumb .svg-icon svg,
+  .page-action-button .svg-icon svg path,
+  .btn-breadcrumb .svg-icon svg path,
+  .page-action-button svg, .btn-breadcrumb svg,
+  .page-action-button svg path, .btn-breadcrumb svg path {
+    color: #f1f5f9 !important;
+    fill: currentColor !important;
+  }
+  .page-action-button .svg-icon svg,
+  .btn-breadcrumb .svg-icon svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .page-action-button:hover,
+  .btn-breadcrumb:hover {
+    color: #c7d2fe !important;
+    background: rgba(99,102,241,0.16) !important;
+    border-color: rgba(99,102,241,0.4) !important;
+    box-shadow: 0 4px 18px rgba(99,102,241,0.45), 0 0 0 1px rgba(99,102,241,0.25) !important;
+  }
+  .page-action-button:hover .svg-icon svg path,
+  .btn-breadcrumb:hover .svg-icon svg path { color: #c7d2fe !important; }
+}
+
+/* ── Loading overlay / SweetAlert / skeleton — couleurs ────── */
+html:not(.artis-light) {
+  .divChargement {
+    /* Quasi-opaque → masque le contenu pendant le reload */
+    background: radial-gradient(ellipse at center, rgba(17,17,40,0.985) 0%, rgba(6,6,18,0.995) 100%) !important;
+    backdrop-filter: blur(10px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  }
+
+  .chgtText {
+    color: #e2e8f0 !important;
+    text-shadow: 0 2px 12px rgba(99,102,241,0.4) !important;
+  }
+
+  /* SWAL2 */
+  .swal2-popup {
+    background: rgba(10,10,28,0.98) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6) !important;
+    color: var(--a-text) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+  }
+
+  .swal2-title { color: var(--a-text) !important; }
+  .swal2-html-container { color: var(--a-muted) !important; }
+
+  .swal2-confirm {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    border: none !important; border-radius: 10px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important;
+  }
+
+  .swal2-cancel {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 10px !important;
+    color: var(--a-muted) !important;
+  }
+
+  .swal2-deny {
+    background: linear-gradient(135deg, #ef4444, #f87171) !important;
+    border: none !important; border-radius: 10px !important; font-weight: 600 !important;
+  }
+
+  .swal2-loader { border-color: var(--a-p) rgba(0,0,0,0) var(--a-p) rgba(0,0,0,0) !important; }
+
+  .swal2-popup.swal2-toast {
+    background: rgba(10,10,28,0.95) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+    color: var(--a-text) !important;
+  }
+
+  /* Skeleton loader (si Artis injecte des placeholders) */
+  .skeleton,
+  [class*="skeleton"],
+  [class*="placeholder"] {
+    background: linear-gradient(
+      90deg,
+      rgba(99,102,241,0.06) 25%,
+      rgba(99,102,241,0.14) 50%,
+      rgba(99,102,241,0.06) 75%
+    ) !important;
+    background-size: 800px 100% !important;
+    animation: artis-shimmer 1.6s infinite linear !important;
+    border-radius: 6px !important;
+    color: transparent !important;
+  }
+}
+
+/* ── Texte / bleu→violet / select2 / tables / scrollbar ────── */
+html:not(.artis-light) {
+  /* TEXT & MISC */
+  h1,h2,h3,h4,h5,h6 { color: var(--a-text) !important; }
+  p, span.menu-title, td, li { color: var(--a-text) !important; }
+  small, .text-muted, .text-body-secondary, .fw-light { color: var(--a-muted) !important; }
+  hr { border-color: rgba(99,102,241,0.12) !important; }
+  a { color: var(--a-p2) !important; transition: color 0.2s !important; }
+  a:hover { color: #a5b4fc !important; }
+
+  /* ── Bleu Artis → violet partout ─────────────────────────── */
+  /* Classes Artis standard */
+  .bg-artis-default-color,
+  .bg-primary,
+  .bg-info,
+  [class*="bg-artis"],
+  [class*="artis-color"],
+  [class*="artis-bg"] {
+    background: linear-gradient(135deg, var(--a-s1), var(--a-s2)) !important;
+    background-color: var(--a-s1) !important;
+    border-color: rgba(99,102,241,0.25) !important;
+  }
+
+  /* Classes bleu Bootstrap/Artis (.bg-blue = #03a9f4, .bg-info, etc.) */
+  .bg-blue,
+  [class*="bg-blue"],
+  .bg-light-blue,
+  .bg-cyan {
+    background: var(--a-s2) !important;
+    background-color: var(--a-s2) !important;
+    border-color: rgba(99,102,241,0.22) !important;
+  }
+
+  /* Inline style bleu Artis exact (#00AEEF, #0084BD, #428bca, #337ab7, #0090d4) */
+  [style*="#00AEEF"], [style*="#00aeef"],
+  [style*="#0084BD"], [style*="#0084bd"],
+  [style*="#428bca"], [style*="#337ab7"],
+  [style*="#0090d4"], [style*="#0090D4"],
+  [style*="#007bff"], [style*="#17a2b8"],
+  [style*="background: #00"], [style*="background:#00"],
+  [style*="background-color: #00"], [style*="background-color:#00"] {
+    background: var(--a-s2) !important;
+    background-color: var(--a-s2) !important;
+    border-color: rgba(99,102,241,0.2) !important;
+  }
+
+  /* Text artis-default → violet */
+  .text-artis-default-color,
+  .text-dark { color: var(--a-p2) !important; }
+
+  /* Dividers */
+  .button-separator { background: rgba(99,102,241,0.2) !important; }
+
+  /* Select2 */
+  .select2-container .select2-selection {
+    background: rgba(255,255,255,0.06) !important;
+    border-color: rgba(99,102,241,0.2) !important;
+    border-radius: 8px !important;
+    color: var(--a-text) !important;
+  }
+
+  .select2-dropdown {
+    background: #181840 !important;
+    border-color: rgba(99,102,241,0.22) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+
+  .select2-results__option { color: var(--a-text) !important; }
+  .select2-results__option--highlighted { background: rgba(99,102,241,0.15) !important; color: var(--a-p2) !important; }
+
+  /* ── NOTIFICATIONS TABLE — #ea_notifications ── */
+  #ea_notifications,
+  #ea_notifications thead,
+  #ea_notifications tbody,
+  #ea_notifications tfoot,
+  #ea_notifications tr,
+  #ea_notifications th,
+  #ea_notifications td {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--a-text) !important;
+    border-color: rgba(99,102,241,0.10) !important;
+  }
+
+  #ea_notifications thead th {
+    background: rgba(99,102,241,0.12) !important;
+    color: var(--a-muted) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.20) !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+  }
+
+  #ea_notifications tbody tr:nth-child(even) td {
+    background: rgba(99,102,241,0.03) !important;
+  }
+
+  #ea_notifications tbody tr:hover td {
+    background: rgba(99,102,241,0.09) !important;
+  }
+
+  /* DataTables état vide */
+  .dataTables_empty,
+  td.dataTables_empty {
+    background: var(--a-s1) !important;
+    color: var(--a-muted) !important;
+    font-style: italic !important;
+    text-align: center !important;
+    padding: 24px !important;
+    border-color: rgba(99,102,241,0.08) !important;
+  }
+
+  /* ── TABLEAU VIDE — fond dark explicite (pas transparent) ──── */
+  /* Empêche le blanc du wrapper de transparaître sur table sans lignes */
+  table,
+  .table,
+  table.dataTable,
+  [class*="table"] > table {
+    background-color: var(--a-s1) !important;
+  }
+
+  /* Wrapper de table → dark aussi (DataTables_wrapper, table-responsive) */
+  .dataTables_wrapper,
+  .table-responsive,
+  .table-container,
+  .array-content,
+  [class*="table-wrapper"],
+  [class*="tableContainer"] {
+    background: var(--a-s1) !important;
+  }
+
+  /* tbody/zone vide */
+  table > tbody:empty,
+  table tbody tr.odd:only-child,
+  table tbody tr:only-child td,
+  tbody:empty {
+    background: var(--a-s1) !important;
+  }
+
+  /* ── TABLES — ZERO BLANC (couverture totale) ──
+     Toutes tables, toutes origines, inline styles inclus */
+
+  /* Cellules/sections internes transparentes (laissent voir le dark) */
+  thead, tbody, tfoot, tr, th, td,
+  .table > *, .table > * > tr > *,
+  [class*="table"] thead,
+  [class*="table"] tbody,
+  [class*="table"] tr,
+  [class*="table"] th,
+  [class*="table"] td {
+    background-color: transparent !important;
+    color: var(--a-text) !important;
+    border-color: rgba(99,102,241,0.10) !important;
+  }
+
+  /* Headers de table → fond violet très léger */
+  table thead tr,
+  table thead th,
+  .table thead tr,
+  .table thead th,
+  [class*="table"] thead th {
+    background: rgba(99,102,241,0.10) !important;
+    color: var(--a-muted) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.18) !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.07em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* Lignes alternées → lisibilité */
+  table tbody tr:nth-child(even) td,
+  .table tbody tr:nth-child(even) td,
+  [class*="table"] tbody tr:nth-child(even) td {
+    background: rgba(99,102,241,0.03) !important;
+  }
+
+  /* Hover ligne */
+  table tbody tr:hover td,
+  .table tbody tr:hover td,
+  [class*="table"] tbody tr:hover td {
+    background: rgba(99,102,241,0.08) !important;
+    transition: background 0.1s ease !important;
+  }
+
+  /* Bootstrap .table-striped override */
+  .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(99,102,241,0.04) !important;
+    color: var(--a-text) !important;
+  }
+
+  /* Bootstrap .table-hover override */
+  .table-hover > tbody > tr:hover > * {
+    background-color: rgba(99,102,241,0.09) !important;
+    color: var(--a-text) !important;
+  }
+
+  /* Bootstrap .table-dark override (already dark but keep consistent) */
+  .table-dark, .table-dark > * > * {
+    background-color: rgba(10,10,28,0.95) !important;
+    color: var(--a-text) !important;
+  }
+
+  /* Bootstrap 5 colore les lignes striées via variables CSS sur les <td>
+     (--bs-table-bg / --bs-table-striped-bg). Inline ou via classe, ça pouvait
+     laisser des lignes BLANCHES illisibles (ex : tableaux DIT « Tâches à planifier »).
+     On force toutes les variables de table en dark. */
+  table, .table, table.dataTable, [class*="table"] {
+    --bs-table-bg: transparent !important;
+    --bs-table-color: #e2e8f0 !important;
+    --bs-table-striped-bg: rgba(99,102,241,0.06) !important;
+    --bs-table-striped-color: #e2e8f0 !important;
+    --bs-table-accent-bg: transparent !important;
+    --bs-table-active-bg: rgba(99,102,241,0.10) !important;
+    --bs-table-active-color: #e2e8f0 !important;
+    --bs-table-hover-bg: rgba(99,102,241,0.10) !important;
+    --bs-table-hover-color: #e2e8f0 !important;
+  }
+  /* Bootstrap 5.3 peint les cellules striées via box-shadow inset alimenté par
+     --bs-table-bg-type (= --bs-table-striped-bg = #eee). background-color ne suffit
+     donc PAS : il faut écraser la variable sur les cellules elles-mêmes. */
+  .table-striped > tbody > tr:nth-of-type(odd) > *,
+  table.dataTable.table-striped > tbody > tr.odd > *,
+  table.dataTable.table-striped > tbody > tr.even > *,
+  table.dataTable > tbody > tr.odd > *,
+  table tbody tr:nth-of-type(odd) > * {
+    --bs-table-bg-type: rgba(99,102,241,0.06) !important;
+    --bs-table-accent-bg: rgba(99,102,241,0.06) !important;
+    --bs-table-color-type: #e2e8f0 !important;
+    color: #e2e8f0 !important;
+  }
+  table tbody tr:nth-of-type(even) > *,
+  table.dataTable > tbody > tr.even > * {
+    --bs-table-bg-type: transparent !important;
+    --bs-table-accent-bg: transparent !important;
+    color: #e2e8f0 !important;
+  }
+  /* hover : tint violet plus marqué via la même variable */
+  table.dataTable.table-hover > tbody > tr:hover > *,
+  .table-hover > tbody > tr:hover > * {
+    --bs-table-bg-type: rgba(99,102,241,0.12) !important;
+    --bs-table-accent-bg: rgba(99,102,241,0.12) !important;
+    color: #e2e8f0 !important;
+  }
+  /* Filet de sécurité : lignes au fond clair inline → texte clair */
+  table tbody tr[style*="background"] td,
+  table tbody tr td[style*="background"] {
+    color: #e2e8f0 !important;
+  }
+
+  /* DataTables spécifique */
+  table.dataTable tbody tr {
+    background: transparent !important;
+  }
+
+  table.dataTable tbody tr.odd {
+    background: rgba(99,102,241,0.03) !important;
+  }
+
+  table.dataTable tbody tr.even {
+    background: transparent !important;
+  }
+
+  table.dataTable tbody tr:hover {
+    background: rgba(99,102,241,0.08) !important;
+  }
+
+  table.dataTable thead th,
+  table.dataTable thead td {
+    background: rgba(99,102,241,0.10) !important;
+    border-bottom: 1px solid rgba(99,102,241,0.18) !important;
+  }
+
+  /* DataTables controls */
+  .dataTables_wrapper .dataTables_filter input,
+  .dataTables_wrapper .dataTables_length select {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(99,102,241,0.2) !important;
+    border-radius: 6px !important;
+    color: var(--a-text) !important;
+  }
+
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    color: var(--a-muted) !important;
+  }
+
+  .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+  .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: rgba(99,102,241,0.15) !important;
+    border-color: rgba(99,102,241,0.25) !important;
+    color: var(--a-p2) !important;
+    border-radius: 6px !important;
+  }
+
+  /* Catch inline style white/light sur cellules */
+  td[style*="background"],
+  th[style*="background"],
+  tr[style*="background"] {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* Lignes groups travail */
+  tr.row-group-travail td {
+    background: rgba(99,102,241,0.08) !important;
+    color: var(--a-p2) !important;
+    border-bottom-color: rgba(99,102,241,0.3) !important;
+    font-weight: 600 !important;
+  }
+
+  /* ── SCROLLBAR ── */
+  &, * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(99,102,241,0.3) rgba(255,255,255,0.02) !important;
+  }
+
+  &::-webkit-scrollbar, *::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
+  &::-webkit-scrollbar-track, *::-webkit-scrollbar-track { background: rgba(255,255,255,0.02) !important; }
+  &::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3) !important; border-radius: 3px !important; }
+  &::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5) !important; }
+
+  .sidebar-main .sidebar-content::-webkit-scrollbar { display: none !important; }
+}
+
+/* ── Date range picker + TinyMCE — couleurs ────────────────── */
+html:not(.artis-light) {
+  /* Date range picker (sélecteur de semaine / période EDT) */
+  .daterangepicker {
+    background: rgba(13,13,38,0.97) !important;
+    backdrop-filter: blur(12px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+    border: 1px solid rgba(99,102,241,0.25) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55) !important;
+    color: #e2e8f0 !important;
+  }
+  .daterangepicker::before,
+  .daterangepicker::after { display: none !important; }
+
+  /* Liste des raccourcis (Aujourd'hui, Cette semaine…) */
+  .daterangepicker .ranges ul { background: transparent !important; }
+  .daterangepicker .ranges li {
+    color: rgba(203,213,225,0.9) !important;
+    background: transparent !important;
+    border-radius: 8px !important;
+    transition: background .15s ease, color .15s ease !important;
+  }
+  .daterangepicker .ranges li:hover {
+    background: rgba(99,102,241,0.15) !important;
+    color: #a5b4fc !important;
+  }
+  .daterangepicker .ranges li.active {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    color: #fff !important;
+  }
+
+  /* En-têtes calendrier + jours de la semaine */
+  .daterangepicker .calendar-table {
+    background: transparent !important;
+    border: none !important;
+  }
+  .daterangepicker .calendar-table table,
+  .daterangepicker table.table-condensed { background: transparent !important; }
+  .daterangepicker th,
+  .daterangepicker .month { color: #cbd5e1 !important; }
+
+  /* Cellules de jours */
+  .daterangepicker td {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+    border-radius: 8px !important;
+  }
+  .daterangepicker td.available:hover,
+  .daterangepicker th.available:hover {
+    background: rgba(99,102,241,0.18) !important;
+    color: #a5b4fc !important;
+  }
+  .daterangepicker td.off,
+  .daterangepicker td.off.in-range,
+  .daterangepicker td.off.start-date,
+  .daterangepicker td.off.end-date {
+    background: transparent !important;
+    color: rgba(148,163,184,0.45) !important;
+  }
+  .daterangepicker td.in-range {
+    background: rgba(99,102,241,0.15) !important;
+    color: #e2e8f0 !important;
+  }
+  .daterangepicker td.active,
+  .daterangepicker td.active:hover,
+  .daterangepicker td.start-date,
+  .daterangepicker td.end-date {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    color: #fff !important;
+  }
+  .daterangepicker td.today:not(.active) {
+    box-shadow: inset 0 0 0 1px rgba(129,140,248,0.6) !important;
+  }
+
+  /* Flèches mois précédent / suivant */
+  .daterangepicker .prev span,
+  .daterangepicker .next span { border-color: #a5b4fc !important; }
+
+  /* Barre de boutons */
+  .daterangepicker .drp-buttons {
+    border-top: 1px solid rgba(99,102,241,0.2) !important;
+  }
+  .daterangepicker .drp-selected { color: #94a3b8 !important; }
+  .daterangepicker .drp-buttons .btn-default {
+    background: rgba(99,102,241,0.12) !important;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+    color: #cbd5e1 !important;
+  }
+  .daterangepicker .drp-buttons .btn-primary {
+    background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+    border: none !important;
+    color: #fff !important;
+  }
+
+  /* Champs heure éventuels */
+  .daterangepicker select,
+  .daterangepicker .calendar-time select {
+    background: rgba(15,15,40,0.9) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+  }
+
+  /* ══ TINYMCE 6 INLINE — éditeur « Commentaire pour le client » ══
+     La barre d'outils flottante (.tox-tinymce-inline) s'affichait
+     transparente PAR-DESSUS le titre du bandeau → illisible.
+     → barre solide dark glass, intégrée visuellement au bandeau. */
+  .tox.tox-tinymce-inline {
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* La barre elle-même : fond SOLIDE (recouvre proprement le titre) */
+  .tox.tox-tinymce-inline .tox-editor-header {
+    background: linear-gradient(160deg, #1d1d46 0%, #15153a 100%) !important;
+    border: 1px solid rgba(99,102,241,0.4) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    padding: 3px 6px !important;
+    overflow: hidden !important;
+  }
+
+  /* Fonds internes (rayures grises par défaut) → transparents */
+  .tox .tox-toolbar-overlord,
+  .tox .tox-toolbar,
+  .tox .tox-toolbar__primary,
+  .tox .tox-toolbar__overflow {
+    background: transparent !important;
+    background-image: none !important;
+  }
+  .tox .tox-toolbar__group {
+    border-color: rgba(99,102,241,0.18) !important;
+    padding: 0 4px !important;
+  }
+
+  /* Boutons de la barre */
+  .tox .tox-tbtn {
+    background: transparent !important;
+    border-radius: 8px !important;
+    color: #e2e8f0 !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease !important;
+  }
+  .tox .tox-tbtn svg { fill: #cbd5e1 !important; }
+  .tox .tox-tbtn:hover,
+  .tox .tox-tbtn:focus {
+    background: rgba(99,102,241,0.22) !important;
+  }
+  .tox .tox-tbtn:hover svg { fill: #fff !important; }
+  .tox .tox-tbtn--enabled,
+  .tox .tox-tbtn--enabled:hover {
+    background: rgba(99,102,241,0.35) !important;
+  }
+  .tox .tox-tbtn--enabled svg { fill: #c7d2fe !important; }
+  .tox .tox-tbtn--disabled svg,
+  .tox .tox-tbtn--disabled:hover svg { fill: rgba(148,163,184,0.35) !important; }
+  .tox .tox-tbtn__select-label { color: #e2e8f0 !important; }
+  .tox .tox-tbtn__select-chevron svg { fill: #94a3b8 !important; }
+  .tox .tox-split-button:hover { box-shadow: none !important; }
+
+  /* Bouton Reformuler Gilles — teinte claire sur barre dark */
+  #artis-reformuler-btn.tox-tbtn {
+    color: #a5b4fc !important;
+  }
+  #artis-reformuler-btn.tox-tbtn svg { fill: #a5b4fc !important; stroke: #a5b4fc !important; }
+  #artis-reformuler-btn.tox-tbtn:hover,
+  #artis-reformuler-btn.tox-tbtn:focus {
+    background: rgba(99,102,241,0.35) !important;
+    color: #e0e7ff !important;
+  }
+  #artis-reformuler-btn.tox-tbtn:hover svg { fill: #e0e7ff !important; stroke: #e0e7ff !important; }
+
+  /* Menus / popups TinyMCE (listes, overflow « … », couleurs) — body-level .tox-tinymce-aux */
+  .tox .tox-menu,
+  .tox .tox-pop,
+  .tox .tox-pop__dialog,
+  .tox .tox-collection {
+    background-color: #15153a !important;
+    border: 1px solid rgba(99,102,241,0.35) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.6) !important;
+    color: #e2e8f0 !important;
+  }
+  .tox .tox-pop::before,
+  .tox .tox-pop::after { display: none !important; }   /* flèche claire du popover */
+  .tox .tox-collection__item {
+    color: #e2e8f0 !important;
+    border-radius: 8px !important;
+  }
+  .tox .tox-collection__item svg { fill: #cbd5e1 !important; }
+  .tox .tox-collection__item--active,
+  .tox .tox-collection__item--enabled,
+  .tox .tox-collection__item:hover {
+    background: rgba(99,102,241,0.22) !important;
+    color: #fff !important;
+  }
+  .tox .tox-collection__item-label,
+  .tox .tox-collection__item-accessory { color: inherit !important; }
+
+  /* Zone éditable : bordure repos indigo (anneau focus en §1) */
+  .editor-artis.editor-artis-inline {
+    border: 1px solid rgba(99,102,241,0.35) !important;
+    border-radius: 10px !important;
+  }
+  .editor-artis.editor-artis-inline:focus,
+  .editor-artis.editor-artis-inline:focus-within {
+    border-color: rgba(99,102,241,0.65) !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   §4 KEYFRAMES GLOBAUX
+   ════════════════════════════════════════════════════════════ */
+@keyframes artis-aside-in {
+  from { opacity: 0; transform: translateX(-14px) scale(0.6); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes artis-flyout-fade {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes artis-loader-pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes artis-spin     { to { transform: rotate(360deg); } }
+@keyframes artis-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes artis-core-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.7; }
+  50%      { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes artis-text-breathe {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@keyframes artis-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes artis-fade-left {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes artis-panel-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes artis-scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes artis-slide-right {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes artis-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes artis-pulse-border {
+  0%, 100% { border-color: rgba(99,102,241,0.2); }
+  50%       { border-color: rgba(99,102,241,0.5); }
 }
