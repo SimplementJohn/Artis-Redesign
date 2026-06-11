@@ -111,6 +111,12 @@ Extension : vanilla JS + CSS pur, zéro dépendance, zéro build.
 
 ---
 
+## 🙏 Remerciements
+
+Merci à [@Brotaaa](https://github.com/Brotaaa) pour la contribution de la page de paramètres avancés (options page sur onglet Chrome) — [PR #2](https://github.com/SimplementJohn/Artis-Redesign/pull/2) 💜
+
+---
+
 <div align="center">
 
 Fait avec 💜 par **[JusteJohn](https://github.com/SimplementJohn)**
