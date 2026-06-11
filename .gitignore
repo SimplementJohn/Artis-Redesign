@@ -2,6 +2,11 @@
 extension/apigemini.txt
 **/apigemini.txt
 
+# Préprompts spécifiques Digithall (personnes, services, contacts) — locaux.
+# Les versions génériques publiées : GILLES.example.md / GILLES_REFORM.example.md
+extension/GILLES.md
+extension/GILLES_REFORM.md
+
 # Backups caveman compress
 *.original.md
 

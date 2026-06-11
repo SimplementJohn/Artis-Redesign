@@ -6,28 +6,16 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <!-- En-tête : identité + interrupteur général -->
+  <!-- En-tête : identité -->
   <header class="pp-head">
     <img src="justejohn.png" alt="" class="pp-logo">
     <div class="pp-head-txt">
       <div class="pp-title">Artis Redesign</div>
       <div class="pp-ver" id="pp-ver">v—</div>
     </div>
-    <label class="pp-switch" title="Active / désactive tout le redesign">
-      <input type="checkbox" id="pp-main" checked>
-      <span class="pp-slider"></span>
-    </label>
   </header>
 
-  <!-- État API Gilles -->
-  <div class="pp-api" id="pp-api" title="État de l'API Gilles">
-    <span class="pp-dot" id="pp-api-dot"></span>
-    <span class="pp-api-txt" id="pp-api-txt">Vérification de l'API…</span>
-    <button class="pp-api-retry" id="pp-api-retry" hidden aria-label="Revérifier">↻</button>
-  </div>
-
-  <!-- Apparence -->
-  <div class="pp-sec-title">Apparence</div>
+  <!-- Thème -->
   <div class="pp-card">
     <div class="pp-row pp-row-col">
       <div class="pp-label">
@@ -35,73 +23,18 @@
         <span class="pp-desc">Auto suit le thème du navigateur</span>
       </div>
       <div class="pp-seg" id="pp-mode" role="radiogroup" aria-label="Mode de thème">
-        <button type="button" data-mode="dark"><span class="pp-seg-ico">🌙</span>Sombre</button>
-        <button type="button" data-mode="auto"><span class="pp-seg-ico">🖥️</span>Auto</button>
-        <button type="button" data-mode="light"><span class="pp-seg-ico">☀️</span>Clair</button>
+        <button type="button" data-mode="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Sombre</button>
+        <button type="button" data-mode="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Auto</button>
+        <button type="button" data-mode="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Clair</button>
       </div>
-    </div>
-    <div class="pp-row">
-      <div class="pp-label">
-        <span class="pp-name">Bouton version</span>
-        <span class="pp-desc">Bouton GitHub + changelog dans la sidebar</span>
-      </div>
-      <label class="pp-switch">
-        <input type="checkbox" id="pp-version" checked>
-        <span class="pp-slider"></span>
-      </label>
     </div>
   </div>
 
-  <!-- Gilles -->
-  <div class="pp-sec-title">Assistant Gilles</div>
-  <div class="pp-card">
-    <div class="pp-row">
-      <div class="pp-label">
-        <span class="pp-name">Activer Gilles</span>
-        <span class="pp-desc">Pop-up IA en bas de page</span>
-      </div>
-      <label class="pp-switch">
-        <input type="checkbox" id="pp-giles" checked>
-        <span class="pp-slider"></span>
-      </label>
-    </div>
-    <div class="pp-row">
-      <div class="pp-label">
-        <span class="pp-name">Partage des pages</span>
-        <span class="pp-desc">Envoie le contenu des pages à Gemini (contexte)</span>
-      </div>
-      <label class="pp-switch">
-        <input type="checkbox" id="pp-pages" checked>
-        <span class="pp-slider"></span>
-      </label>
-    </div>
-    <details class="pp-adv">
-      <summary>Clé API Gemini</summary>
-      <input type="password" id="pp-key" placeholder="Laisser vide = clé du fichier apigemini.txt" autocomplete="off">
-      <button id="pp-key-save">Enregistrer la clé</button>
-      <div class="pp-hint" id="pp-key-hint"></div>
-    </details>
-  </div>
-
-  <!-- Divers -->
-  <div class="pp-sec-title">Divers</div>
-  <div class="pp-card">
-    <div class="pp-row">
-      <div class="pp-label">
-        <span class="pp-name">Notifications</span>
-        <span class="pp-desc">Nouvelles DIT → notification navigateur</span>
-      </div>
-      <label class="pp-switch">
-        <input type="checkbox" id="pp-notif">
-        <span class="pp-slider"></span>
-      </label>
-    </div>
-  </div>
-
-  <footer class="pp-foot">
-    Les conversations restent en local sur ce PC.
-    <br><a href="#" id="pp-options-link" class="pp-options-link">⚙ Paramètres avancés</a>
-  </footer>
+  <!-- Paramètres avancés -->
+  <button id="pp-options-btn" class="pp-options-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.09a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+    Paramètres avancés
+  </button>
 
   <script src="popup.js"></script>
 </body>

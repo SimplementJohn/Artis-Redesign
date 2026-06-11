@@ -5,6 +5,13 @@
 (function () {
   'use strict';
 
+  /* Thème clair = couleurs NATIVES Artis (zéro recolor). Tout ce qui
+     touche aux couleurs (canvas, nuclear CSS, strips, observer-strip)
+     ne tourne QU'EN sombre. Structure/animations/widgets : les 2 thèmes. */
+  function isLightTheme() {
+    return document.documentElement.classList.contains('artis-light');
+  }
+
   /* ── 1. Animated canvas background ──────────────────────── */
   function createBackground() {
     const canvas = document.createElement('canvas');
@@ -321,8 +328,10 @@
       if (!btn) return;
       const rect = btn.getBoundingClientRect();
       const r = document.createElement('span');
+      /* Clair : ondes sombres (blanc invisible sur boutons natifs clairs) */
+      const rippleColor = isLightTheme() ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.2)';
       r.style.cssText = `
-        position:absolute;border-radius:50%;background:rgba(255,255,255,0.2);
+        position:absolute;border-radius:50%;background:${rippleColor};
         width:6px;height:6px;pointer-events:none;z-index:9999;
         left:${e.clientX - rect.left}px;top:${e.clientY - rect.top}px;
         transform:translate(-50%,-50%) scale(0);
@@ -471,6 +480,7 @@
       const nodes  = pendingNodes; pendingNodes = new Set();
       const styled = pendingStyle; pendingStyle = new Set();
       const evts   = pendingEvts;  pendingEvts  = new Set();
+      const dark   = !isLightTheme();   // strips couleur = sombre uniquement
 
       observer.disconnect();   // nos écritures ne re-déclenchent pas l'observer
 
@@ -490,15 +500,17 @@
             (node.querySelector && node.querySelector('.box-rotate-loader, .chgtContent')))) {
           injectLoader(node);
         }
-        /* Strip white + Artis blue : une seule passe combinée */
-        stripInline(node);
-        if (node.children && node.children.length) stripAllInline(node);
+        /* Strip white + Artis blue : une seule passe combinée (sombre only) */
+        if (dark) {
+          stripInline(node);
+          if (node.children && node.children.length) stripAllInline(node);
+        }
         /* Blocs planning ajoutés dynamiquement → préfixe d'état */
         if (node.classList && node.classList.contains('planning-event')) applyStateEmoji(node);
         else if (node.querySelector && node.querySelector('.planning-event')) tagPlanningBlocks(node);
       });
 
-      styled.forEach(el => { if (el.isConnected) stripInline(el); });
+      if (dark) styled.forEach(el => { if (el.isConnected) stripInline(el); });
       evts.forEach(evt => { if (evt.isConnected) applyStateEmoji(evt); });
 
       observer.observe(document.body, OBS_OPTS);
@@ -529,7 +541,7 @@
   const STORAGE_KEY = 'artis-theme';
 
   /* Réglages pilotés par la popup (chrome.storage.local) — défauts = activés */
-  const CFG = { dark: true, versionBtn: true };
+  const CFG = { themeMode: 'light', versionBtn: true };   /* themeMode: dark | light | auto — défaut clair (v1.9.58) */
 
   const MOON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`;
   const SUN_SVG  = `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
@@ -538,15 +550,6 @@
     /* Attendre que la sidebar soit présente */
     const sidebar = document.querySelector('.aside-primary');
     if (!sidebar) return;
-
-    /* Mode sombre piloté par la popup (CFG.dark). false = thème clair forcé. */
-    if (!CFG.dark) {
-      document.documentElement.classList.add('artis-light');
-      try { localStorage.setItem(STORAGE_KEY, 'light'); } catch (e) {}
-    } else {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'light') document.documentElement.classList.add('artis-light');
-    }
 
     /* Liste de TOUS les wrappers boutons existants pour cloner + se coller */
     const allWrappers = Array.from(sidebar.querySelectorAll('.aside-item-btn'));
@@ -577,18 +580,12 @@
     /* Insérer JUSTE APRÈS le dernier bouton — collé au groupe, pas en bas */
     refWrapper.insertAdjacentElement('afterend', wrapper);
 
-    /* Toggle handler */
+    /* Toggle handler — écrit le mode EXPLICITE dans chrome.storage ; le
+       listener storage recharge tous les onglets Artis avec l'overlay
+       anti-saccade (reload obligatoire : canvas/nuclear/strips = init only). */
     btn.addEventListener('click', () => {
-      const isLight = document.documentElement.classList.toggle('artis-light');
-      localStorage.setItem(STORAGE_KEY, isLight ? 'light' : 'dark');
-
-      btn.style.transform = 'scale(0.8) rotate(30deg)';
-      btn.style.opacity = '0';
-      setTimeout(() => {
-        btn.innerHTML = isLight ? SUN_SVG : MOON_SVG;
-        btn.style.transform = 'scale(1) rotate(0deg)';
-        btn.style.opacity = '1';
-      }, 150);
+      const toLight = !document.documentElement.classList.contains('artis-light');
+      chrome.storage.local.set({ artis_theme_mode: toLight ? 'light' : 'dark' });
     });
 
     /* ── Bouton VERSION (sous le toggle theme) — masquable via popup ── */
@@ -596,7 +593,7 @@
   }
 
   /* ── 6b1. Bouton version — journal des versions : CHANGELOG.md (racine repo) ── */
-  const ARTIS_VERSION = '1.9.52';
+  const ARTIS_VERSION = '1.9.58';
   const GITHUB_REPO = 'https://github.com/SimplementJohn/Artis-Redesign';
   const VERSION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.39 1.24-3.23-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.23 0 4.63-2.81 5.65-5.49 5.95.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0024 12.5C24 5.87 18.63.5 12 .5z"/></svg>`;
 
@@ -618,6 +615,83 @@
     ref.insertAdjacentElement('afterend', wrapper);
 
     btn.addEventListener('click', () => window.open(GITHUB_REPO, '_blank', 'noopener'));
+  }
+
+  /* ── 6b2. Bouton MENU sidebar + popup dédié (v1.9.58, style Gilles) ──
+     Le workspace natif #kt_aside_workspace (recherche + tabs + menu) est
+     DÉPLACÉ dans un popup body-level #artis-menu-popup — les handlers Artis
+     suivent le DOM déplacé. L'ancien volet .aside-secondary devient une
+     coquille vide (reste glissé hors écran, display intact). Ouverture au
+     survol du bouton ou du popup (classe html.artis-menu-open, grâce 250ms). */
+  const MENU_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>`;
+
+  function injectMenuButton(tries) {
+    tries = tries || 0;
+    if (document.getElementById('artis-menu-btn')) return;
+    const sidebar = document.querySelector('.aside-primary');
+    const firstWrapper = sidebar && sidebar.querySelector('.aside-item-btn');
+    const workspace = document.getElementById('kt_aside_workspace');
+    if (!sidebar || !firstWrapper || !workspace) {
+      if (tries < 10) setTimeout(() => injectMenuButton(tries + 1), 400);
+      return;
+    }
+
+    /* Popup body-level + déplacement du workspace (handlers conservés) */
+    const popup = document.createElement('div');
+    popup.id = 'artis-menu-popup';
+    popup.appendChild(workspace);
+    document.body.appendChild(popup);
+
+    /* Garde anti-reload : les toggles accordéon / items « Accueil » portent
+       href = URL courante + "#". Si le handler Artis ne preventDefault pas
+       (race au chargement), le navigateur suit le href → reload complet de
+       la même page. On bloque LA NAVIGATION par défaut seulement — les
+       handlers JS Artis (bubble) s'exécutent normalement. */
+    popup.addEventListener('click', e => {
+      const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      const raw = a.getAttribute('href') || '';
+      const samePage = a.href.split('#')[0] === location.href.split('#')[0];
+      if (raw === '#' || raw === '' || (samePage && /#$/.test(a.href))) {
+        e.preventDefault();
+      }
+    }, true);
+
+    /* Bouton sidebar (clone pixel-perfect, comme theme/Gilles) */
+    const wrapper = firstWrapper.cloneNode(false);
+    wrapper.removeAttribute('id');
+    const refBtn = firstWrapper.querySelector('.nav-link, a, button');
+    const btn = refBtn ? refBtn.cloneNode(false) : document.createElement('a');
+    btn.id = 'artis-menu-btn';
+    if (refBtn) btn.className = refBtn.className.replace(/\bactive\b/g, '').trim();
+    else btn.className = 'nav-link btn btn-icon';
+    btn.setAttribute('aria-label', 'Menu de navigation');
+    btn.setAttribute('title', 'Menu');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('href', 'javascript:void(0)');
+    ['data-kt-menu-trigger','data-bs-toggle','data-bs-target','data-id'].forEach(a => btn.removeAttribute(a));
+    btn.innerHTML = MENU_SVG;
+    wrapper.appendChild(btn);
+    firstWrapper.insertAdjacentElement('beforebegin', wrapper);
+
+    /* Hover : ouvre/ferme via html.artis-menu-open (grâce 250ms pour
+       traverser l'espace entre la sidebar et le popup) */
+    let closeTimer = null;
+    const open = () => {
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+      document.documentElement.classList.add('artis-menu-open');
+    };
+    const scheduleClose = () => {
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => {
+        document.documentElement.classList.remove('artis-menu-open');
+        closeTimer = null;
+      }, 250);
+    };
+    btn.addEventListener('mouseenter', open);
+    btn.addEventListener('mouseleave', scheduleClose);
+    popup.addEventListener('mouseenter', open);
+    popup.addEventListener('mouseleave', scheduleClose);
   }
 
   /* ── Stagger entrée sidebar — une seule timeline (natifs+injectés) ── */
@@ -706,7 +780,9 @@
   function stripMenuTitles() {
     document.querySelectorAll(
       '.aside-secondary .menu-link[title], .aside-secondary .menu-title[title], ' +
-      '.aside-secondary a[title], .aside-secondary [data-bs-original-title]'
+      '.aside-secondary a[title], .aside-secondary [data-bs-original-title], ' +
+      '#artis-menu-popup .menu-link[title], #artis-menu-popup .menu-title[title], ' +
+      '#artis-menu-popup a[title], #artis-menu-popup [data-bs-original-title]'
     ).forEach(el => {
       el.removeAttribute('title');
       el.removeAttribute('data-bs-original-title');
@@ -717,7 +793,9 @@
   function tagPage() {
     const url = location.href;
     const root = document.documentElement;
-    if (/entreeVisualiser\.action/i.test(url)) root.classList.add('artis-page-entree');
+    /* Accueil UNIQUEMENT (commun/accueil/…) — la page DIT ccPlanningV2/entreeVisualiser
+       matchait aussi et héritait du flyout transparent prévu pour l'accueil */
+    if (/accueil\/entreeVisualiser\.action/i.test(url)) root.classList.add('artis-page-entree');
     if (/ccPlanningV2/i.test(url) || document.body.classList.contains('page-ccPlanningV2'))
       root.classList.add('artis-page-planning');
   }
@@ -782,6 +860,7 @@
      nous intéressent (strips + boutons) → querySelectorAll('[style]')
      au lieu de '*' (10-100× moins d'éléments sur une page planning). */
   function initialSweep() {
+    if (isLightTheme()) return;   /* clair = couleurs natives Artis, zéro strip */
     document.body.querySelectorAll(
       'button[style], input[type="button"][style], input[type="submit"][style], .btn[style], [role="button"][style]'
     ).forEach(el => {
@@ -903,38 +982,9 @@
     }, DIT_RELOAD_MS);
   }
 
-  /* ── Bouton "Reformuler avec Gilles" sur éditeur compte rendu DIT ── */
-  /* System prompt CR — passé en systemOverride pour bypasser le prompt Gilles */
-  const CR_SYSTEM = `Tu es un assistant spécialisé dans la rédaction de comptes rendus d'intervention technique pour Digithall à Saint-Rémy-de-Provence (services : achats, déploiement, support tél, reprographie, network).
-
-Ton unique rôle ici est de transformer les notes brutes de l'utilisateur en compte rendu structuré. Tu ne fais rien d'autre.
-
-CONTEXTE DIT : un bloc « CONTEXTE DE LA DEMANDE (DIT) » peut précéder les notes (client, site, demandeur, dates, détail de la demande initiale). Il sert UNIQUEMENT à comprendre la demande — ne le recopie pas (pas de coordonnées client/site dans le compte rendu).
-
-RÈGLES ABSOLUES :
-- Base-toi sur les informations des notes fournies. Ne génère aucun fait technique inventé.
-- Quand une action des notes est raccord avec la demande initiale du contexte, tu PEUX expliciter les étapes logiques évidentes qu'elle implique (ex: « mise à jour de l'ordinateur » → remise en service et vérification du bon fonctionnement pour l'utilisateur). Reste factuel, pas de détails techniques non mentionnés.
-- Si une section ne peut pas être remplie avec les informations disponibles, omets-la.
-- Formate avec **gras** pour les titres et points clés, tirets pour les listes.
-- Réponds UNIQUEMENT avec le compte rendu, sans commentaire ni introduction.
-
-STRUCTURE À RESPECTER :
-
-**Constat initial**
-Phrase introductive décrivant le contexte (ex: "Prise en main à distance, constat de...")
-
-**Actions réalisées**
-- Action 1
-- Action 2
-(liste des étapes effectuées)
-
-**Tests effectués** (uniquement si mentionnés dans les notes)
-- TEST NOM : OK / ÉCHEC
-
-**Conclusion**
-DEMANDE INITIALE RÉSOLUE : OK
-ou DEMANDE INITIALE RÉSOLUE : ÉCHEC
-ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
+  /* ── Bouton "Reformuler avec Gilles" sur éditeur compte rendu DIT ──
+     Le system prompt CR vit dans extension/GILLES_REFORM.md (modifiable
+     sans toucher au code) — chargé par giles-bg via systemPreset. */
 
   /* Message utilisateur — juste les notes brutes */
   const CR_USER_PREFIX = `Voici mes notes brutes à transformer en compte rendu :\n\n`;
@@ -996,33 +1046,12 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
     btn.type = 'button';
     btn.id = 'artis-reformuler-btn';
     btn.title = 'Reformuler avec Gilles';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 5.5h13A2.5 2.5 0 0 1 19.5 8v6A2.5 2.5 0 0 1 17 16.5H9l-4 3.2V16.5A2.5 2.5 0 0 1 4 14V8A2.5 2.5 0 0 1 6.5 5.5"/><circle cx="8.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="1" fill="currentColor" stroke="none"/><path d="M19.5 2.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/></svg> Reformuler';
-    btn.style.cssText = [
-      'display:flex',
-      'align-items:center',
-      'gap:5px',
-      'padding:4px 10px',
-      'border:1px solid rgba(99,102,241,0.45)',
-      'border-radius:6px',
-      'background:rgba(99,102,241,0.18)',
-      'color:#a5b4fc',
-      'font-size:0.75rem',
-      'font-weight:600',
-      'cursor:pointer',
-      'transition:background 0.2s,color 0.2s',
-      'backdrop-filter:blur(8px)',
-      'line-height:1',
-      'white-space:nowrap',
-    ].join(';');
-
-    btn.addEventListener('mouseenter', () => {
-      btn.style.background = 'rgba(99,102,241,0.35)';
-      btn.style.color = '#e0e7ff';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.background = 'rgba(99,102,241,0.18)';
-      btn.style.color = '#a5b4fc';
-    });
+    btn.setAttribute('aria-label', 'Reformuler avec Gilles');
+    /* Icon-only, même taille que tox-tbtn (34×34) → pas de wrap sur nouvelle ligne */
+    btn.innerHTML = '<span class="tox-icon tox-tbtn__icon-wrap" style="display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M4 5.5h13A2.5 2.5 0 0 1 19.5 8v6A2.5 2.5 0 0 1 17 16.5H9l-4 3.2V16.5A2.5 2.5 0 0 1 4 14V8A2.5 2.5 0 0 1 6.5 5.5"/><circle cx="8.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="1" fill="currentColor" stroke="none"/><path d="M19.5 2.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/></svg></span>';
+    btn.className = 'tox-tbtn';
+    /* width:34px = ce que TinyMCE pose inline sur ses propres boutons */
+    btn.style.cssText = 'width:34px;cursor:pointer;';
 
     btn.addEventListener('click', () => {
       /* Lecture texte : 3 sources par ordre de fiabilité */
@@ -1039,16 +1068,17 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
       }
 
       btn.disabled = true;
-      btn.innerHTML = '<span style="display:inline-block;animation:artis-spin 0.8s linear infinite">⟳</span> En cours…';
+      btn.innerHTML = '<span style="display:inline-block;animation:artis-spin 1.4s ease-in-out infinite;font-size:16px;line-height:1;">⟳</span>';
+      btn.title = 'Reformuler… en cours';
 
       /* Contexte DIT (client/site/demande) → Gilles comprend la demande initiale */
       const ditCtx = getDitContext();
       const userMsg = (ditCtx ? 'CONTEXTE DE LA DEMANDE (DIT) :\n' + ditCtx + '\n\n' : '') + CR_USER_PREFIX + rawText;
       const history = [{ role: 'user', text: userMsg }];
 
-      const SVG_BTN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 5.5h13A2.5 2.5 0 0 1 19.5 8v6A2.5 2.5 0 0 1 17 16.5H9l-4 3.2V16.5A2.5 2.5 0 0 1 4 14V8A2.5 2.5 0 0 1 6.5 5.5"/><circle cx="8.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="1" fill="currentColor" stroke="none"/><path d="M19.5 2.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/></svg> Reformuler';
-      const resetBtn = () => { btn.disabled = false; btn.innerHTML = SVG_BTN; };
-      const showErr  = code => { btn.innerHTML = '⚠ ' + code; console.error('[Reformuler]', code); setTimeout(resetBtn, 5000); };
+      const SVG_ICON = '<span class="tox-icon tox-tbtn__icon-wrap" style="display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M4 5.5h13A2.5 2.5 0 0 1 19.5 8v6A2.5 2.5 0 0 1 17 16.5H9l-4 3.2V16.5A2.5 2.5 0 0 1 4 14V8A2.5 2.5 0 0 1 6.5 5.5"/><circle cx="8.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="1" fill="currentColor" stroke="none"/><path d="M19.5 2.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="currentColor" stroke="none"/></svg></span>';
+      const resetBtn = () => { btn.disabled = false; btn.innerHTML = SVG_ICON; btn.style.fontSize = ''; btn.style.color = ''; btn.title = 'Reformuler avec Gilles'; };
+      const showErr  = code => { btn.innerHTML = '⚠'; btn.title = code; console.error('[Reformuler]', code); setTimeout(resetBtn, 5000); };
 
       try {
         /* Port long-lived : évite le bug MV3 "message port closed before response" */
@@ -1068,7 +1098,9 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
           editor.dispatchEvent(new Event('change', { bubbles: true }));
           const hiddenInput = editor.parentElement && editor.parentElement.querySelector('input[type="hidden"][name="ita_messclt"]');
           if (hiddenInput) hiddenInput.value = html;
-          btn.innerHTML = '✓ Reformulé';
+          btn.innerHTML = '✓';
+          btn.title = 'Reformulé !';
+          btn.style.color = '#34d399';
           setTimeout(resetBtn, 3000);
         });
 
@@ -1076,7 +1108,7 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
           if (!answered) showErr(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Recharge la page (F5)');
         });
 
-        port.postMessage({ type: 'GILLES_ASK', history, pages: [], systemOverride: CR_SYSTEM });
+        port.postMessage({ type: 'GILLES_ASK', history, pages: [], systemPreset: 'reform' });
       } catch (e) {
         showErr('Recharge la page (F5)');
       }
@@ -1084,19 +1116,26 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
 
     /* Monte le bouton DANS la barre d'outils TinyMCE inline, à côté des boutons
        police/gras — la barre (.tox-tinymce-inline) est créée au focus éditeur. */
-    btn.style.margin = '0 2px';
+    btn.style.cssText += ';margin:0 2px;';
     /* mousedown sur la barre ne doit pas blur l'éditeur (sinon TinyMCE cache la barre) */
     btn.addEventListener('mousedown', e => e.preventDefault());
 
     function mountInToolbar() {
       if (document.getElementById('artis-reformuler-btn')) return true;   /* déjà monté */
+      /* Insérer dans le 1er groupe [role=toolbar] (fullscreen seul) — ligne 1 garantie.
+         Fallback : nouveau groupe en fin de barre si structure inattendue. */
       const toolbar = document.querySelector('.tox.tox-tinymce-inline .tox-toolbar__primary');
       if (!toolbar) return false;
-      const group = document.createElement('span');
-      group.className = 'tox-toolbar__group';
-      group.style.cssText = 'display:flex;align-items:center;';
-      group.appendChild(btn);
-      toolbar.appendChild(group);
+      const firstGroup = toolbar.querySelector('[role="toolbar"]');
+      if (firstGroup) {
+        firstGroup.appendChild(btn);
+      } else {
+        const group = document.createElement('span');
+        group.className = 'tox-toolbar__group';
+        group.style.cssText = 'display:flex;align-items:center;padding:0 2px;';
+        group.appendChild(btn);
+        toolbar.appendChild(group);
+      }
       return true;
     }
 
@@ -1106,12 +1145,12 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
     function placeToolbar() {
       const tb = document.querySelector('.tox.tox-tinymce-inline');
       if (!tb) return;
-      tb.style.transform = 'none';            // mesure de la position naturelle
+      tb.style.transform = 'none';
       const tr = tb.getBoundingClientRect();
       if (!tr.width) return;
       const er = editor.getBoundingClientRect();
       const dx = Math.round((er.left + er.width / 2) - (tr.left + tr.width / 2));
-      const wantTop = Math.max(8, er.top - tr.height - 10);   // 10px au-dessus du bloc
+      const wantTop = Math.max(8, er.top - tr.height - 10);
       const dy = Math.round(wantTop - tr.top);
       if (dx || dy) tb.style.transform = `translate(${dx}px, ${dy}px)`;
     }
@@ -1120,29 +1159,41 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
       if (_plRaf) return;
       _plRaf = requestAnimationFrame(() => { _plRaf = null; placeToolbar(); });
     };
-    /* capture:true → scroll des conteneurs internes aussi (TinyMCE re-ancre au scroll) */
     window.addEventListener('scroll', schedulePlace, { passive: true, capture: true });
     window.addEventListener('resize', schedulePlace, { passive: true });
 
-    /* La toolbar peut être détruite/recréée par TinyMCE → à CHAQUE focus :
-       monter le bouton si absent + replacer. */
+    /* MutationObserver : surveille l'apparition/recréation de .tox-toolbar__primary
+       TinyMCE peut détruire et recréer la toolbar à tout moment (scroll, resize,
+       recalcul interne) — on remontre le bouton dès que la toolbar (re)apparaît. */
+    const toolbarObs = new MutationObserver(() => {
+      if (!document.getElementById('artis-reformuler-btn')) {
+        if (mountInToolbar()) schedulePlace();
+      }
+    });
+    toolbarObs.observe(document.body, { childList: true, subtree: true });
+
+    /* focusin : remonter si absent + replacer (TinyMCE cache la barre au blur,
+       la rend visible au focus — vérification systématique) */
     editor.addEventListener('focusin', () => {
-      let tries = 0;
-      (function tryMount() {
-        const mounted = mountInToolbar();
+      if (!mountInToolbar()) {
+        /* toolbar pas encore là : attente courte bornée */
+        let t = 0;
+        (function tryMount() {
+          if (mountInToolbar()) { placeToolbar(); return; }
+          if (++t < 15) setTimeout(tryMount, 100);
+        })();
+      } else {
         placeToolbar();
-        if (!mounted && ++tries < 20) setTimeout(tryMount, 150);
-      })();
+      }
     });
 
-    /* Toolbar visible EN PERMANENCE : TinyMCE ne rend la barre qu'au 1er focus
-       → focus furtif pour forcer le rendu (le CSS display !important la garde
-       affichée ensuite, même après blur). Re-essais bornés. */
+    /* Focus furtif initial pour forcer TinyMCE à rendre la barre (le CSS
+       display:block !important la garde visible ensuite). Re-essais bornés. */
     let kicked = false, tries = 0;
     (function ensureToolbar() {
       if (mountInToolbar()) {
         placeToolbar();
-        setTimeout(placeToolbar, 600);    /* re-place après stabilisation du layout */
+        setTimeout(placeToolbar, 600);
         setTimeout(placeToolbar, 2000);
         return;
       }
@@ -1160,9 +1211,80 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
   }
 
   /* ── Init ─────────────────────────────────────────────────── */
+
+  /* Pose la classe artis-light AVANT toute autre étape : isLightTheme()
+     doit être fiable dès le début d'init (canvas/nuclear/strips = sombre only).
+     Mode auto = suit le thème du navigateur (prefers-color-scheme). */
+  function applyThemePreference() {
+    let light = false;
+    if (CFG.themeMode === 'light') light = true;
+    else if (CFG.themeMode === 'auto') {
+      try { light = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+    }
+    if (light) document.documentElement.classList.add('artis-light');
+
+    /* Auto : le navigateur change de thème en cours de session → rebascule */
+    if (CFG.themeMode === 'auto') {
+      try {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+          reloadWithThemeOverlay(e.matches);
+        }, { once: true });
+      } catch (e) {}
+    }
+  }
+
+  /* ── Bascule de thème SANS saccade ──────────────────────────
+     Overlay opaque (couleur du thème CIBLE) peint AVANT le reload,
+     re-posé immédiatement au chargement suivant (flag sessionStorage),
+     puis retiré en fondu une fois le thème appliqué. */
+  const SWITCH_FLAG = 'artis-theme-switching';
+
+  function showThemeSwitchOverlay(toLight) {
+    let ov = document.getElementById('artis-switch-overlay');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'artis-switch-overlay';
+    /* Styles inline : l'overlay doit se peindre même si notre feuille CSS
+       n'est pas (encore) active. Seul le spinner anime via la feuille. */
+    ov.style.cssText =
+      'position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;' +
+      'align-items:center;justify-content:center;gap:16px;opacity:1;transition:opacity .4s ease;' +
+      (toLight
+        ? 'background:#f1f5f9;color:#475569;'
+        : 'background:linear-gradient(160deg,#16163a 0%,#101028 100%);color:#cbd5e1;');
+    ov.innerHTML =
+      '<div class="artis-switch-spinner"></div>' +
+      '<div style="font:600 .85rem \'Plus Jakarta Sans\',sans-serif;letter-spacing:.02em;">Changement de thème…</div>';
+    document.documentElement.appendChild(ov);   /* hors body → insensible à l\'anti-saccade */
+    return ov;
+  }
+
+  function reloadWithThemeOverlay(toLight) {
+    showThemeSwitchOverlay(toLight);
+    try { sessionStorage.setItem(SWITCH_FLAG, toLight ? 'light' : 'dark'); } catch (e) {}
+    /* Reload après 2 frames : laisse l'overlay se peindre d'abord (zéro saccade) */
+    requestAnimationFrame(() => requestAnimationFrame(() => location.reload()));
+  }
+
+  function resumeThemeSwitchOverlay() {
+    let flag = null;
+    try { flag = sessionStorage.getItem(SWITCH_FLAG); sessionStorage.removeItem(SWITCH_FLAG); } catch (e) {}
+    if (!flag) return;
+    const ov = showThemeSwitchOverlay(flag === 'light');
+    /* Thème déjà appliqué (applyThemePreference a tourné) → fondu de sortie */
+    setTimeout(() => {
+      ov.style.opacity = '0';
+      setTimeout(() => ov.remove(), 450);
+    }, 650);
+  }
+
   function init() {
-    createBackground();
-    injectNuclearCSS();
+    applyThemePreference();
+    resumeThemeSwitchOverlay();
+    if (!isLightTheme()) {
+      createBackground();     /* canvas dark : jamais créé en clair */
+      injectNuclearCSS();     /* recolor inline white/grey : sombre only */
+    }
     enhanceLoadingScreens();
     injectRipple();
     initialSweep();   /* blanc + bleu + boutons + notifications : un seul parcours */
@@ -1170,6 +1292,7 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
     styleProfileCard();
     setTimeout(styleProfileCard, 800);  /* re-pass si avatar chargé tard */
     injectThemeToggle();        /* injecte theme + version */
+    injectMenuButton();         /* bouton menu → ouvre le volet au survol */
     runSidebarStagger();        /* anime TOUS les boutons d'un coup, raccord */
     setPrimaryWidth();
     stripMenuTitles();
@@ -1198,12 +1321,24 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
   }
 
   function boot() {
-    chrome.storage.local.get(['artis_enabled', 'artis_dark', 'artis_version_btn'], s => {
+    chrome.storage.local.get(['artis_enabled', 'artis_theme_mode', 'artis_dark', 'artis_version_btn'], s => {
       if (s && s.artis_enabled === false) {
         disableThemeSheets(true);   // thème off : on neutralise notre CSS, init non lancé
         return;
       }
-      CFG.dark       = s.artis_dark !== false;        // défaut = sombre
+      let mode = s.artis_theme_mode;
+      if (mode !== 'dark' && mode !== 'light' && mode !== 'auto') {
+        /* Migration anciens réglages : slider popup artis_dark + toggle localStorage */
+        if (s.artis_dark === false) mode = 'light';
+        else {
+          let saved = null;
+          try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+          /* Défaut = clair (v1.9.58) ; on respecte un ancien choix dark explicite */
+          mode = (saved === 'dark' || s.artis_dark === true) ? 'dark' : 'light';
+        }
+        chrome.storage.local.set({ artis_theme_mode: mode });
+      }
+      CFG.themeMode  = mode;
       CFG.versionBtn = s.artis_version_btn !== false; // défaut = visible
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
       else init();
@@ -1214,8 +1349,21 @@ ou DEMANDE PARTIELLEMENT RÉSOLUE : préciser`;
   let _lastEnabled = null;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    /* Mode sombre / bouton version : on recharge pour réappliquer proprement */
-    if ('artis_dark' in changes || 'artis_version_btn' in changes) { location.reload(); return; }
+    /* Mode thème : reload avec overlay anti-saccade — seulement si le thème
+       EFFECTIF change (ex: dark → auto avec navigateur sombre = rien à faire) */
+    if ('artis_theme_mode' in changes) {
+      const nv = changes.artis_theme_mode.newValue;
+      let toLight = nv === 'light';
+      if (nv === 'auto') {
+        try { toLight = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+      }
+      if (toLight !== document.documentElement.classList.contains('artis-light')) {
+        reloadWithThemeOverlay(toLight);
+      }
+      return;
+    }
+    /* Bouton version : on recharge pour réappliquer proprement */
+    if ('artis_version_btn' in changes) { location.reload(); return; }
     if (!('artis_enabled' in changes)) return;
     const nv = changes.artis_enabled.newValue;
     if (_lastEnabled !== null && nv !== _lastEnabled) location.reload();

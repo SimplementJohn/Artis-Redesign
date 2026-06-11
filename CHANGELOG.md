@@ -3,6 +3,41 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 1.9.58 — 2026-06-11
+- Gilles : préprompts spécifiques Digithall (`GILLES.md`, `GILLES_REFORM.md`) gitignorés ; modèles génériques publiés (`GILLES.example.md`, `GILLES_REFORM.example.md`) utilisés en fallback si les spécifiques absents (le spécifique prime toujours)
+- Gilles : réponses plus jamais tronquées en plein mot — `maxOutputTokens` 1024→8192 + `thinkingBudget: 0` (les tokens de réflexion des modèles 2.5 mangeaient le budget de sortie → `MAX_TOKENS`)
+- Popup : simplifiée — thème (Sombre/Auto/Clair, icônes SVG) + bouton « Paramètres avancés » uniquement ; master switch, Gilles, partage pages, notifs, clé API, état API → page paramètres
+- Gilles : escalade dans GILLES.md — question non résolue → orienter vers Alexandre (Avant-vente) ou Geoffrey LASCOMBE (GEO, N+1 support)
+- Gilles : anti double présentation (bloc « présentation déjà faite » injecté en systemInstruction — ne se représente plus sur « salut »), liste de LIENS ARTIS FIABLES injectée (interdiction d'inventer URL/menu/bouton), bouton ↺ réinitialiser la conversation courante dans le header du panel
+- Page paramètres : refonte lisibilité/accessibilité — base 16px (textes +20–30 %), contrastes AA, focus clavier visibles, cibles ≥44px (switches 52px, nav 46px), icônes SVG à la place des emojis, navigation clavier (Tab + Entrée, `role=tab`/`aria-selected`), `prefers-reduced-motion`, responsive < 760px
+- Gilles : préprompts EXCLUSIVEMENT en fichiers .md bundlés — `extension/GILLES.md` (système, ex `prompts/giles-system-prompt.txt`) + `extension/GILLES_REFORM.md` (bouton Reformuler, ex constante `CR_SYSTEM` dans le JS) ; app-content envoie `systemPreset:'reform'`, giles-bg charge le .md
+- Gilles : mémoire de conversation réglable 5–30 messages (défaut 15, ex 5 fixe) — slider page paramètres, clé `giles_mem_limit`, appliqué live
+- Gilles : avatar robot `gilles.png` (image 128px bundlée, web_accessible) dans le header du panel à la place de l'icône SVG bulle
+- Gilles : polices agrandies (lisibilité) — bulles + input `.98rem`, onglets `.9rem`, titre `1.1rem`, statut/notice/conversations relevés en proportion
+- Menu popup : garde anti-reload — clic sur un lien `href` = page courante + `#` (toggles accordéon, « Accueil ») ne déclenche plus de rechargement complet quand le handler Artis n'a pas `preventDefault` (capture, navigation bloquée seulement, handlers Artis intacts)
+- Défauts : thème CLAIR par défaut (un choix dark explicite déjà enregistré est respecté) + notifications navigateur activées par défaut (`notif_enabled !== false`) — app-content, popup, options, giles-bg
+- Menu navigation = POPUP dédié `#artis-menu-popup` (style Gilles) : le workspace natif `#kt_aside_workspace` (recherche + tabs + menu) est déplacé dans un panneau flottant body-level (fixed, 330px, glass dark / blanc clair, coins arrondis) — fini le volet natif qui rendait mal (transparent sur accueil, contenu visible derrière) ; ancien `.aside-secondary` = coquille vide hors écran
+- Bouton MENU sidebar `#artis-menu-btn` (icône grille 4 carrés, en tête des icônes, comme le bouton Gilles) : popup ouvert au survol du bouton ou du popup (classe `html.artis-menu-open`, grâce de fermeture 250 ms) — plus d'ouverture au survol global de la sidebar
+- Flyout menu : sous-menus (Services, Biens et configurations, Logistique et stocks) en POPUP flottant au survol — plus d'accordéon, zéro décalage de layout ; popup ancré à droite de l'item (`position:absolute; left:100%`), scrollable (70vh max), thèmes dark/clair ; `.aside-secondary` passe en `overflow:visible`
+
+## 1.9.57 — 2026-06-11
+- Thème clair : blocs planning/DIT plus jamais rendus transparents — strips de fonds inline (couleurs métier), canvas dark et nuclear CSS ne tournent QU'EN sombre ; classe `artis-light` posée en tout début d'init (`applyThemePreference()`)
+- Thème clair : icônes des 3 boutons sidebar injectés (theme, Gilles, version GitHub) en blanc sur la sidebar native bleue
+- Page DIT `ccPlanningV2/entreeVisualiser` : flyout menu plus transparent — le tag `artis-page-entree` (bande accueil transparente) ne s'applique plus qu'à l'accueil `commun/accueil/entreeVisualiser` ; fond blanc opaque du flyout en thème clair
+- Toggle theme sidebar : recharge la page (un switch live laissait un état mixte strips/canvas)
+
+## 1.9.56 — 2026-06-11
+- Bouton Reformuler : même taille que boutons TinyMCE natifs (`width:34px` inline + dimensions hauteur gérées par skin CSS) ; couleur indigo via `#artis-reformuler-btn` dans app-override.css (override propre des `!important` globaux)
+
+## 1.9.55 — 2026-06-11
+- Bouton Reformuler : inséré dans le 1er groupe `[role="toolbar"]` (à côté de Plein écran) plutôt qu'en nouveau groupe à la fin — plus de wrap sur 2e ligne
+
+## 1.9.54 — 2026-06-11
+- Bouton Reformuler : icon-only (34×34px, classe `tox-tbtn`) → tient sur la même ligne que les boutons TinyMCE natifs sans wrap ; états spinner/succès/erreur restent dans l'icône (tooltip pour les messages)
+
+## 1.9.53 — 2026-06-11
+- Bouton Reformuler (CRIT DIT) : MutationObserver remplace le polling `focusin`+setTimeout — bouton remonté automatiquement dès que TinyMCE recrée la toolbar (disparition aléatoire corrigée) ; hauteur fixée à 28px pour s'aligner sur la même ligne que les boutons natifs
+
 ## 1.9.52 — 2026-06-10
 - Planning : le volet menu ne redimensionne plus brutalement le planning — overlay fixe qui glisse au survol (même animation fluide que les autres pages), le contenu ne bouge plus du tout
 
