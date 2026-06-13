@@ -3,6 +3,10 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.0.1 — 2026-06-13
+
+- Typographie renouvelée : corps → **DM Sans** (meilleure lisibilité ERP, tables denses), titres → **Space Grotesk** (hiérarchie visuelle tech). Polices déjà bundlées localement — zéro requête réseau supplémentaire. Ferme #6.
+
 ## 2.0.0 — 2026-06-11
 
 > Passage en versioning sémantique : MAJEUR.MINEUR.PATCH (grosse refonte = 3.0.0, modif moyenne = 2.1.0, petite modif/fix = 2.0.1).

@@ -32,9 +32,9 @@ body { animation: artis-failsafe-reveal 0.01s linear 1.2s forwards; }
 
 /* ── Typo (identité visuelle, pas une couleur) ────────────── */
 html, body {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+  font-family: 'DM Sans', -apple-system, sans-serif !important;
 }
-h1, h2, h3, h4, h5, h6 { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', sans-serif !important; }
 
 /* ── Canvas background (créé par le JS UNIQUEMENT en sombre) ─ */
 #artis-app-canvas {
@@ -304,7 +304,7 @@ html.artis-page-entree .aside-secondary .tab-pane:empty {
 
 /* Titre menu */
 .menu-title {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
 }
@@ -676,7 +676,7 @@ div.grid,
 
 /* Texte chargement — typo + respiration (couleur en §3) */
 .chgtText {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
   font-size: 1.02rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.05em !important;
@@ -777,7 +777,7 @@ html.artis-light #artis-version-btn:hover {
   position: absolute !important;
   bottom: 2px !important;
   right: 2px !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
   font-size: 7px !important;
   font-weight: 700 !important;
   line-height: 1 !important;
@@ -816,7 +816,7 @@ html.artis-light #artis-version-btn:hover {
   box-shadow: 0 24px 70px rgba(0,0,0,0.6), 0 0 60px rgba(99,102,241,0.12) !important;
   overflow: hidden !important;
   animation: artis-scale-in 0.4s cubic-bezier(0.22,1,0.36,1) both !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
 }
 
 .artis-cl-header {
@@ -1252,7 +1252,7 @@ html:not(.artis-light) {
     background: linear-gradient(135deg, #6366f1, #818cf8) !important;
     color: #fff !important;
     border-radius: 99px !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 9px !important;
     font-weight: 700 !important;
     box-shadow: 0 2px 8px rgba(99,102,241,0.5), 0 0 0 1px rgba(255,255,255,0.1) !important;
@@ -1500,7 +1500,7 @@ html:not(.artis-light) {
 
   .page-header h1, .page-header h2, .page-header h3 {
     color: var(--a-text) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
   }
 
   /* TABS — nav-tabs */
@@ -1516,7 +1516,7 @@ html:not(.artis-light) {
     border-bottom: 2px solid transparent !important;
     border-radius: 0 !important;
     color: var(--a-muted) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.875rem !important;
     font-weight: 500 !important;
     padding: 10px 18px !important;
@@ -1812,7 +1812,7 @@ html:not(.artis-light) {
     background: rgba(99,102,241,0.12) !important;
     color: var(--a-muted) !important;
     border-bottom: 1px solid rgba(99,102,241,0.2) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.72rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.07em !important;
@@ -1869,7 +1869,7 @@ html:not(.artis-light) {
     border-bottom: 1px solid rgba(99,102,241,0.15) !important;
     color: var(--a-text) !important;
     font-weight: 600 !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
   }
 
   .card-body { background: transparent !important; color: var(--a-text) !important; }
@@ -1905,7 +1905,7 @@ html:not(.artis-light) {
     border: none !important;
     color: var(--a-text) !important;
     font-size: 1rem !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
   }
   #global-search-input::placeholder { color: rgba(148,163,184,0.5) !important; }
 
@@ -1967,7 +1967,7 @@ html:not(.artis-light) {
     border: 1px solid rgba(99,102,241,0.3) !important;
     border-radius: 8px !important;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.78rem !important;
     padding: 6px 10px !important;
   }
@@ -1989,7 +1989,7 @@ html:not(.artis-light) {
     border: 1px solid rgba(99,102,241,0.3) !important;
     border-radius: 8px !important;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.78rem !important;
     padding: 6px 10px !important;
   }
@@ -2050,7 +2050,7 @@ html:not(.artis-light) {
     border: 1px solid rgba(99,102,241,0.2) !important;
     border-radius: 8px !important;
     color: var(--a-text) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
     transition: border-color 0.2s, box-shadow 0.2s !important;
   }
 
@@ -2252,7 +2252,7 @@ html:not(.artis-light) {
     border-radius: 18px !important;
     box-shadow: 0 24px 64px rgba(0,0,0,0.6) !important;
     color: var(--a-text) !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-family: 'DM Sans', sans-serif !important;
   }
 
   .swal2-title { color: var(--a-text) !important; }
