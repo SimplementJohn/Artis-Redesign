@@ -49,15 +49,15 @@ et le contenu des pages visitées.
 
 | Login | Accueil |
 |---|---|
-| ![Login](SCREENSHOTS/login.png) | ![Accueil](SCREENSHOTS/accueil.png) |
+| ![Login](docs/login.png) | ![Accueil](docs/accueil.png) |
 
 | Planning — sombre | Planning — clair |
 |---|---|
-| ![Planning sombre](SCREENSHOTS/planingdark.png) | ![Planning clair](SCREENSHOTS/planinglight.png) |
+| ![Planning sombre](docs/planning-dark.png) | ![Planning clair](docs/planning-light.png) |
 
 | Popup | Paramètres avancés |
 |---|---|
-| ![Popup](SCREENSHOTS/extentionpopup.png) | ![Paramètres avancés](SCREENSHOTS/advancedsettings.png) |
+| ![Popup](docs/popup.png) | ![Paramètres avancés](docs/settings.png) |
 
 ---
 
