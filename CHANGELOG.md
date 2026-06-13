@@ -3,6 +3,13 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.1.0 — 2026-06-13
+
+- Gilles multi-provider : Gemini · OpenAI GPT · Anthropic Claude · DAI (Ollama). Sélecteur fournisseur + clé par provider + URL serveur DAI + liste modèles dynamique DAI via `/api/tags`. Ferme #5.
+- Ping `GILES_PING` et fallback multi-modèles adaptés par provider.
+- Export JSON exclut désormais les clés API (sécurité).
+- `manifest.json` : host_permissions `api.openai.com`, `api.anthropic.com`, `localhost`.
+
 ## 2.0.1 — 2026-06-13
 
 - Typographie renouvelée : corps → **DM Sans** (meilleure lisibilité ERP, tables denses), titres → **Space Grotesk** (hiérarchie visuelle tech). Polices déjà bundlées localement — zéro requête réseau supplémentaire. Ferme #6.

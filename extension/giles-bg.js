@@ -1,30 +1,20 @@
-﻿/* ============================================================
-   Gilles — Service worker (appels IA Gemini)
-   - Charge le préprompt + la base de connaissance (artis.txt)
-   - Récupère la clé API (chrome.storage > apigemini.txt bundlé)
-   - Reçoit GILES_ASK du content script, renvoie la réponse
-   Aucune donnée de conversation n'est stockée ici.
+/* ============================================================
+   Gilles — Service worker (appels IA multi-provider)
+   Providers : Gemini · OpenAI · Anthropic Claude · DAI (Ollama)
    ============================================================ */
 
-const GILES_MODEL_DEFAULT = 'gemini-2.5-flash-lite';
-
-/* Caches en mémoire (réinitialisés à chaque réveil du SW) */
 let _systemPrompt = null;
-let _knowledge = null;
+let _knowledge    = null;
 
 async function loadText(path) {
   try {
     const res = await fetch(chrome.runtime.getURL(path));
     if (!res.ok) return '';
     const t = await res.text();
-    return t.replace(/^﻿/, '');   // strip BOM éventuel
-  } catch (e) {
-    return '';
-  }
+    return t.replace(/^﻿/, '');
+  } catch (e) { return ''; }
 }
 
-/* Préprompt : le fichier SPÉCIFIQUE (GILLES.md, gitignoré) prime ;
-   sinon fallback sur le modèle générique publié (GILLES.example.md). */
 async function getSystemPrompt() {
   if (_systemPrompt === null) {
     _systemPrompt = await loadText('GILLES.md');
@@ -33,7 +23,6 @@ async function getSystemPrompt() {
   return _systemPrompt || 'Tu es Gilles, assistant du site Artis.';
 }
 
-/* Liens internes Artis connus et vérifiés (cf. CLAUDE.md « LIENS / PAGES UTILES ») */
 const ARTIS_LINKS = [
   { label: 'Accueil',                       url: 'composants/commun/accueil/entreeVisualiser.action' },
   { label: 'Planning',                      url: 'composants/ccPlanningV2/entreeVisualiser.action' },
@@ -44,27 +33,23 @@ const ARTIS_LINKS = [
   { label: 'Aide en ligne Artis (externe)', url: 'https://portail.artis.fr/docs/5.0.5/index.html' },
 ];
 
-/* Préprompts presets — exclusivement dans des fichiers .md bundlés */
 let _reformPrompt = null;
 async function getPresetPrompt(preset) {
   if (preset === 'reform') {
     if (_reformPrompt === null) {
-      _reformPrompt = await loadText('GILLES_REFORM.md');                          /* spécifique d'abord */
-      if (!_reformPrompt) _reformPrompt = await loadText('GILLES_REFORM.example.md'); /* sinon générique */
+      _reformPrompt = await loadText('GILLES_REFORM.md');
+      if (!_reformPrompt) _reformPrompt = await loadText('GILLES_REFORM.example.md');
     }
     return _reformPrompt || null;
   }
   return null;
 }
 
-/* ── Base de connaissance avec RÉCUPÉRATION ciblée ───────────
-   La doc complète (93 fichiers .md) est trop grosse pour être envoyée
-   à chaque message. On sélectionne les fichiers les plus pertinents
-   selon la question, via knowledge-index.json.                        */
-let _index = null;          // [{f, t, k}]
-let _base = null;           // artis.txt (seed), caché comme le reste
-const _fileCache = {};       // f -> contenu
-const KB_MAX_CHARS = 50000;  // budget base de connaissance (+ ~40k de pages côté client)
+/* ── Base de connaissance ───────────────────────────────────── */
+let _index = null;
+let _base  = null;
+const _fileCache = {};
+const KB_MAX_CHARS = 50000;
 
 function norm(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -84,15 +69,13 @@ async function loadKnowledgeFile(f) {
   return _fileCache[f] || '';
 }
 
-/* Sélectionne + concatène les fichiers pertinents pour la question */
 async function getKnowledgeFor(query) {
-  if (_base === null) _base = await loadText('artis.txt');   // toujours inclus (seed), fetché 1 fois
-  const base = _base;
+  if (_base === null) _base = await loadText('artis.txt');
+  const base  = _base;
   const index = await getIndex();
   if (!index.length) return base;
 
   const tokens = [...new Set(norm(query).split(/[^a-z0-9]+/).filter(w => w.length >= 3))];
-
   let scored;
   if (tokens.length) {
     scored = index.map(e => {
@@ -100,24 +83,19 @@ async function getKnowledgeFor(query) {
       let s = 0;
       for (const t of tokens) {
         if (k.includes(t)) s += 1;
-        if ((e.f || '').toLowerCase().includes(t)) s += 2; // bonus si dans le nom de fichier
+        if ((e.f || '').toLowerCase().includes(t)) s += 2;
       }
       return { e, s };
     }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
-  } else {
-    scored = [];
-  }
+  } else { scored = []; }
 
-  /* Toujours commencer par INDEX.md (sommaire) s'il existe */
   const picks = [];
   const idxFile = index.find(e => /(^|\/)INDEX\.md$/i.test(e.f));
   if (idxFile) picks.push(idxFile.f);
-
   for (const { e } of scored) {
     if (!picks.includes(e.f)) picks.push(e.f);
     if (picks.length >= 6) break;
   }
-  /* Fallback si rien trouvé : INDEX + 2 premiers fichiers */
   if (picks.length <= 1) {
     for (const e of index.slice(0, 3)) if (!picks.includes(e.f)) picks.push(e.f);
   }
@@ -136,46 +114,81 @@ async function getKnowledgeFor(query) {
   return out;
 }
 
-/* Clé API : priorité au réglage utilisateur (chrome.storage), sinon fichier bundlé */
-async function getApiKey() {
-  const stored = await chrome.storage.local.get('giles_api_key');
-  if (stored && stored.giles_api_key) return stored.giles_api_key.trim();
+/* ── Provider config ─────────────────────────────────────────── */
+const PROVIDER_MODELS_DEFAULT = {
+  gemini: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'],
+  openai: ['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1'],
+  claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'],
+  dai:    [],
+};
 
-  const raw = await loadText('apigemini.txt');
-  if (!raw) return '';
-  /* Format Google AI Studio : clé type AIza... ou AQ.... */
-  const m = raw.match(/\b(AIza[0-9A-Za-z_\-]{20,}|AQ\.[0-9A-Za-z._\-]{20,})\b/);
-  if (m) return m[1];
-  /* Fallback : 1re ligne « longue » sans espace ni slash */
-  const line = raw.split(/\r?\n/).map(s => s.trim())
-    .find(s => s.length >= 20 && !/\s/.test(s) && !s.includes('/'));
-  return line || '';
+async function getActiveProvider() {
+  const s = await chrome.storage.local.get('giles_provider');
+  return s.giles_provider || 'gemini';
 }
 
-/* Modèles essayés dans l'ordre (fallback auto si quota/dispo).
-   Testés OK sur la clé actuelle ; les 2.0 sont en dernier (souvent quota 0). */
-const GILES_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
-
-async function getModels() {
-  const s = await chrome.storage.local.get('giles_model');
-  if (s && s.giles_model) return [s.giles_model, ...GILES_MODELS.filter(m => m !== s.giles_model)];
-  return GILES_MODELS.slice();
+async function getKeyFor(provider) {
+  if (provider === 'gemini') {
+    const s = await chrome.storage.local.get(['key_gemini', 'giles_api_key']);
+    if (s.key_gemini) return s.key_gemini.trim();
+    if (s.giles_api_key) return s.giles_api_key.trim();
+    const raw = await loadText('apigemini.txt');
+    if (!raw) return '';
+    const m = raw.match(/\b(AIza[0-9A-Za-z_\-]{20,}|AQ\.[0-9A-Za-z._\-]{20,})\b/);
+    if (m) return m[1];
+    const line = raw.split(/\r?\n/).map(s => s.trim())
+      .find(s => s.length >= 20 && !/\s/.test(s) && !s.includes('/'));
+    return line || '';
+  }
+  if (provider === 'dai') return '';
+  const key = 'key_' + provider;
+  const s = await chrome.storage.local.get(key);
+  return (s[key] || '').trim();
 }
 
-/* Classe une erreur API → code lisible */
+async function getDAIUrl() {
+  const s = await chrome.storage.local.get('dai_url');
+  return (s.dai_url || 'http://localhost:11434').replace(/\/$/, '');
+}
+
+async function getModelsFor(provider) {
+  const prefKey = 'giles_model_pref_' + provider;
+  const s = await chrome.storage.local.get([prefKey, 'giles_model_pref']);
+  const pref = s[prefKey] || (provider === 'gemini' ? s.giles_model_pref : null) || '';
+
+  if (provider === 'dai') {
+    const baseUrl = await getDAIUrl();
+    try {
+      const res  = await fetch(baseUrl + '/api/tags', { signal: AbortSignal.timeout(5000) });
+      const data = await res.json();
+      const list = (data.models || []).map(m => m.name).filter(Boolean);
+      if (!list.length) return [pref || 'llama3'];
+      if (pref && !list.includes(pref)) list.unshift(pref);
+      return pref ? [pref, ...list.filter(m => m !== pref)] : list;
+    } catch { return [pref || 'llama3']; }
+  }
+
+  const defaults = (PROVIDER_MODELS_DEFAULT[provider] || []).slice();
+  if (!pref) return defaults;
+  return [pref, ...defaults.filter(m => m !== pref)];
+}
+
+/* ── Error classifier ───────────────────────────────────────── */
 function classifyApiError(status, message) {
   const m = (message || '').toLowerCase();
-  if (status === 429 || m.includes('quota') || m.includes('resource_exhausted') || m.includes('rate limit')) return 'QUOTA';
+  if (status === 429 || m.includes('quota') || m.includes('resource_exhausted') || m.includes('rate limit') || m.includes('rate_limit')) return 'QUOTA';
   if (status === 503 || status === 500 || m.includes('overload') || m.includes('high demand') || m.includes('unavailable') || m.includes('try again later')) return 'OVERLOAD';
   if (status === 404 || m.includes('not found') || m.includes('not supported')) return 'MODEL';
-  if (status === 400 || m.includes('api key') || m.includes('api_key') || m.includes('invalid')) return 'KEY_INVALID';
+  if (status === 401 || status === 403 || m.includes('unauthorized') || m.includes('authentication') || m.includes('invalid') || m.includes('api key') || m.includes('api_key')) return 'KEY_INVALID';
   return 'API';
 }
 
-/* Un appel generateContent sur un modèle donné */
-async function callModel(model, key, systemText, contents) {
-  /* Clé en HEADER (x-goog-api-key), jamais en query string → n'apparaît pas dans les logs/proxies */
+/* ── Adaptateurs par provider ──────────────────────────────────
+   Entrée normalisée : messages = [{role:'user'|'assistant', content:string}] */
+
+async function callGemini(model, key, systemText, messages) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const contents = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
   let res;
   try {
     res = await fetch(url, {
@@ -184,26 +197,19 @@ async function callModel(model, key, systemText, contents) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemText }] },
         contents,
-        /* 2.5 : les tokens de "thinking" comptent dans maxOutputTokens → budget
-           large + thinking coupé (modèles 2.5 uniquement, 400 sur les 2.x),
-           sinon réponse tronquée en plein mot (MAX_TOKENS) */
         generationConfig: Object.assign(
           { temperature: 0.4, maxOutputTokens: 8192, topP: 0.95 },
-          /^gemini-2\.5/.test(model) || /^flash/.test(model)
-            ? { thinkingConfig: { thinkingBudget: 0 } } : {}
+          /^gemini-2\.5/.test(model) || /^flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}
         ),
       }),
     });
   } catch (e) { return { ok: false, error: 'NETWORK' }; }
-
   let data;
   try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
-
   if (!res.ok || data.error) {
     const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
     return { ok: false, error: classifyApiError(res.status, msg), detail: msg, status: res.status };
   }
-
   const cand = data.candidates && data.candidates[0];
   const text = cand && cand.content && cand.content.parts
     ? cand.content.parts.map(p => p.text || '').join('').trim() : '';
@@ -211,110 +217,223 @@ async function callModel(model, key, systemText, contents) {
   return { ok: true, text, model };
 }
 
-/* Appel Gemini avec fallback multi-modèles (quota / modèle indispo) */
+async function callOpenAI(model, key, systemText, messages, baseUrl) {
+  const url = (baseUrl || 'https://api.openai.com') + '/v1/chat/completions';
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: systemText }, ...messages],
+        temperature: 0.4,
+        max_tokens: 8192,
+      }),
+    });
+  } catch (e) { return { ok: false, error: 'NETWORK' }; }
+  let data;
+  try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+  if (!res.ok || data.error) {
+    const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+    return { ok: false, error: classifyApiError(res.status, msg), detail: msg, status: res.status };
+  }
+  const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!text) return { ok: false, error: 'NO_TEXT', detail: data.choices && data.choices[0] && data.choices[0].finish_reason };
+  return { ok: true, text: text.trim(), model };
+}
+
+async function callClaude(model, key, systemText, messages) {
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model,
+        system: systemText,
+        messages,
+        max_tokens: 8192,
+      }),
+    });
+  } catch (e) { return { ok: false, error: 'NETWORK' }; }
+  let data;
+  try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+  if (!res.ok || data.type === 'error') {
+    const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+    return { ok: false, error: classifyApiError(res.status, msg), detail: msg, status: res.status };
+  }
+  const text = data.content && data.content[0] && data.content[0].text;
+  if (!text) return { ok: false, error: 'NO_TEXT', detail: data.stop_reason };
+  return { ok: true, text: text.trim(), model };
+}
+
+async function callDAI(model, systemText, messages) {
+  const baseUrl = await getDAIUrl();
+  return callOpenAI(model, '', systemText, messages, baseUrl);
+}
+
+async function callLLM(provider, model, key, systemText, messages) {
+  switch (provider) {
+    case 'openai': return callOpenAI(model, key, systemText, messages);
+    case 'claude': return callClaude(model, key, systemText, messages);
+    case 'dai':    return callDAI(model, systemText, messages);
+    default:       return callGemini(model, key, systemText, messages);
+  }
+}
+
+/* ── Keep-alive SW ──────────────────────────────────────────── */
+let _keepAliveTimer = null;
+function swKeepAlive() { _keepAliveTimer = setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000); }
+function swStopAlive() { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
+
 function fmtTime(ts) {
   if (!ts) return 'inconnue';
   try { return new Date(ts).toLocaleString('fr-FR'); } catch (e) { return String(ts); }
 }
 
-/* Keep-alive : empêche le service worker MV3 de s'endormir pendant les appels async */
-let _keepAliveTimer = null;
-function swKeepAlive()  { _keepAliveTimer = setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000); }
-function swStopAlive()  { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
-
-async function askGemini(history, pages, systemOverride) {
+/* ── Fonction principale ─────────────────────────────────────── */
+async function askLLM(history, pages, systemOverride) {
   swKeepAlive();
   try {
-  const key = await getApiKey();
-  if (!key) return { ok: false, error: 'NO_KEY' };
+    const provider = await getActiveProvider();
+    const key      = await getKeyFor(provider);
+    if (provider !== 'dai' && !key) return { ok: false, error: 'NO_KEY' };
 
-  const lastUser = [...(history || [])].reverse().find(m => m && m.role !== 'assistant' && m.text);
-  const query = lastUser ? lastUser.text : '';
+    const lastUser = [...(history || [])].reverse().find(m => m && m.role !== 'assistant' && m.text);
+    const query    = lastUser ? lastUser.text : '';
 
-  /* systemOverride = bypass total du prompt Artis + base de connaissance */
-  let systemText, models;
-  if (systemOverride) {
-    models    = await getModels();
-    systemText = systemOverride;
-  } else {
-    const [sys, knowledge, mdls] = await Promise.all([getSystemPrompt(), getKnowledgeFor(query), getModels()]);
-    models    = mdls;
-    systemText = sys + '\n\n========================\nBASE DE CONNAISSANCE ARTIS\n========================\n' + knowledge;
+    let systemText;
+    if (systemOverride) {
+      systemText = systemOverride;
+    } else {
+      const [sys, knowledge] = await Promise.all([getSystemPrompt(), getKnowledgeFor(query)]);
+      systemText = sys + '\n\n========================\nBASE DE CONNAISSANCE ARTIS\n========================\n' + knowledge;
+      systemText += '\n\n========================\nPRÉSENTATION DÉJÀ FAITE\n========================\n'
+        + 'L\'utilisateur a DÉJÀ vu ton message de présentation dans l\'interface. '
+        + 'Ne te représente JAMAIS (pas de « Bonjour, je suis Gilles… »). '
+        + 'Sur un simple « salut » / « hey » / « bonjour », réponds naturellement et brièvement, '
+        + 'puis propose ton aide sur Artis.';
+      systemText += '\n\n========================\nLIENS ARTIS FIABLES\n========================\n'
+        + 'Tu ne peux proposer QUE ces liens internes (relatifs à la base '
+        + 'https://artis.digithall.org/ArtisWebDigitInvest/) ou des liens présents '
+        + 'textuellement dans la base de connaissance / les pages visitées. '
+        + 'N\'invente JAMAIS une URL, un menu ou un bouton.\n'
+        + ARTIS_LINKS.map(l => `- ${l.label} : ${l.url}`).join('\n');
+    }
 
-    /* Anti double présentation : le frontend affiche déjà le message
-       d'accueil de Gilles (hasGreeted) — il ne doit jamais se représenter. */
-    systemText += '\n\n========================\nPRÉSENTATION DÉJÀ FAITE\n========================\n'
-      + 'L\'utilisateur a DÉJÀ vu ton message de présentation dans l\'interface. '
-      + 'Ne te représente JAMAIS (pas de « Bonjour, je suis Gilles… »). '
-      + 'Sur un simple « salut » / « hey » / « bonjour », réponds naturellement et brièvement, '
-      + 'puis propose ton aide sur Artis.';
+    if (Array.isArray(pages) && pages.length) {
+      systemText += '\n\n========================\nPAGES VISITÉES (MÉMOIRE LOCALE DE LA SESSION)\n========================\n'
+        + 'Ces pages ont été consultées par l\'utilisateur durant cette session. '
+        + 'Utilise leur contenu pour répondre, même s\'il s\'agit d\'une page différente de celle affichée.\n'
+        + 'RÈGLES :\n'
+        + '- Si l\'information demandée ne figure dans AUCUNE page ci-dessous, dis-le clairement et indique à l\'utilisateur qu\'il doit d\'abord VISITER la page concernée (ex : ouvrir le Planning) pour que tu puisses la lire.\n'
+        + '- Quand tu réponds à partir d\'une page, précise l\'heure de dernière récupération de ces données (indiquée ci-dessous), car elles peuvent être périmées.\n';
+      pages.forEach((p, i) => {
+        systemText += `\n--- PAGE ${i + 1} : ${p.title || '(sans titre)'} ---\n`
+          + 'URL : ' + (p.url || '') + '\n'
+          + 'Dernière récupération : ' + fmtTime(p.time) + '\n'
+          + 'CONTENU :\n' + (p.text || '') + '\n';
+      });
+    }
 
-    /* Liens Artis FIABLES — seuls liens internes autorisés (jamais inventer d'URL) */
-    systemText += '\n\n========================\nLIENS ARTIS FIABLES\n========================\n'
-      + 'Tu ne peux proposer QUE ces liens internes (relatifs à la base '
-      + 'https://artis.digithall.org/ArtisWebDigitInvest/) ou des liens présents '
-      + 'textuellement dans la base de connaissance / les pages visitées. '
-      + 'N\'invente JAMAIS une URL, un menu ou un bouton.\n'
-      + ARTIS_LINKS.map(l => `- ${l.label} : ${l.url}`).join('\n');
-  }
+    /* Normalise history → [{role:'user'|'assistant', content:string}] */
+    const messages = (history || [])
+      .filter(m => m && m.text)
+      .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.text) }));
+    while (messages.length && messages[0].role !== 'user') messages.shift();
+    if (!messages.length) return { ok: false, error: 'EMPTY' };
 
-  /* Mémoire locale des pages visitées (Planning + autres pages).
-     Permet de répondre sur une page consultée précédemment. */
-  if (Array.isArray(pages) && pages.length) {
-    systemText += '\n\n========================\nPAGES VISITÉES (MÉMOIRE LOCALE DE LA SESSION)\n========================\n'
-      + 'Ces pages ont été consultées par l\'utilisateur durant cette session. '
-      + 'Utilise leur contenu pour répondre, même s\'il s\'agit d\'une page différente de celle affichée.\n'
-      + 'RÈGLES :\n'
-      + '- Si l\'information demandée ne figure dans AUCUNE page ci-dessous, dis-le clairement et indique à l\'utilisateur qu\'il doit d\'abord VISITER la page concernée (ex : ouvrir le Planning) pour que tu puisses la lire.\n'
-      + '- Quand tu réponds à partir d\'une page, précise l\'heure de dernière récupération de ces données (indiquée ci-dessous), car elles peuvent être périmées.\n';
-    pages.forEach((p, i) => {
-      systemText += `\n--- PAGE ${i + 1} : ${p.title || '(sans titre)'} ---\n`
-        + 'URL : ' + (p.url || '') + '\n'
-        + 'Dernière récupération : ' + fmtTime(p.time) + '\n'
-        + 'CONTENU :\n' + (p.text || '') + '\n';
-    });
-  }
+    const models = await getModelsFor(provider);
+    if (!models.length) return { ok: false, error: 'NO_MODEL' };
 
-  const contents = (history || []).filter(m => m && m.text)
-    .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.text) }] }));
-  while (contents.length && contents[0].role !== 'user') contents.shift();
-  if (!contents.length) return { ok: false, error: 'EMPTY' };
-
-  let last = { ok: false, error: 'UNKNOWN' };
-  const RETRYABLE = ['QUOTA', 'MODEL', 'OVERLOAD'];
-  for (let i = 0; i < models.length; i++) {
-    const r = await callModel(models[i], key, systemText, contents);
-    if (r.ok) return r;
-    last = r;
-    /* on tente le modèle suivant sur quota / modèle indispo / surcharge */
-    if (!RETRYABLE.includes(r.error)) break;
-    /* petite pause avant le modèle suivant si surcharge */
-    if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));
-  }
-  return last;
+    let last = { ok: false, error: 'UNKNOWN' };
+    const RETRYABLE = ['QUOTA', 'MODEL', 'OVERLOAD'];
+    for (let i = 0; i < models.length; i++) {
+      const r = await callLLM(provider, models[i], key, systemText, messages);
+      if (r.ok) return r;
+      last = r;
+      if (!RETRYABLE.includes(r.error)) break;
+      /* pas de fallback multi-modèle pour DAI */
+      if (provider === 'dai') break;
+      if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));
+    }
+    return last;
   } finally { swStopAlive(); }
 }
 
-/* Ping santé : liste des modèles — valide la clé SANS consommer de quota génération */
-async function pingGemini() {
-  const key = await getApiKey();
-  if (!key) return { ok: false, error: 'NO_KEY' };
-  let res;
-  try { res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', { headers: { 'x-goog-api-key': key } }); }
-  catch (e) { return { ok: false, error: 'NETWORK' }; }
-  if (res.status === 200) return { ok: true };
-  let data; try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
-  const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
-  return { ok: false, error: classifyApiError(res.status, msg), detail: msg, status: res.status };
+/* Backward compat — code existant qui appelle askGemini */
+const askGemini = askLLM;
+
+/* ── Ping par provider ──────────────────────────────────────── */
+async function pingProvider(provider) {
+  switch (provider) {
+    case 'gemini': {
+      const key = await getKeyFor('gemini');
+      if (!key) return { ok: false, error: 'NO_KEY' };
+      let res;
+      try { res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', { headers: { 'x-goog-api-key': key } }); }
+      catch (e) { return { ok: false, error: 'NETWORK' }; }
+      if (res.status === 200) return { ok: true };
+      let data; try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+      const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+      return { ok: false, error: classifyApiError(res.status, msg), detail: msg };
+    }
+    case 'openai': {
+      const key = await getKeyFor('openai');
+      if (!key) return { ok: false, error: 'NO_KEY' };
+      let res;
+      try { res = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': 'Bearer ' + key } }); }
+      catch (e) { return { ok: false, error: 'NETWORK' }; }
+      if (res.status === 200) return { ok: true };
+      let data; try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+      const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+      return { ok: false, error: classifyApiError(res.status, msg), detail: msg };
+    }
+    case 'claude': {
+      const key = await getKeyFor('claude');
+      if (!key) return { ok: false, error: 'NO_KEY' };
+      let res;
+      try { res = await fetch('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } }); }
+      catch (e) { return { ok: false, error: 'NETWORK' }; }
+      if (res.status === 200) return { ok: true };
+      let data; try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+      const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+      return { ok: false, error: classifyApiError(res.status, msg), detail: msg };
+    }
+    case 'dai': {
+      const baseUrl = await getDAIUrl();
+      let res;
+      try { res = await fetch(baseUrl + '/api/version', { signal: AbortSignal.timeout(5000) }); }
+      catch (e) { return { ok: false, error: 'NETWORK' }; }
+      if (res.status === 200) return { ok: true };
+      return { ok: false, error: 'API', detail: 'HTTP ' + res.status };
+    }
+    default: return { ok: false, error: 'UNKNOWN' };
+  }
 }
 
-/* ── Notifications navigateur ────────────────────────────────
-   Envoyées depuis le content script (Gilles répond hors-page,
-   ou nouvelles DIT détectées). Gardées par le réglage notif_enabled. */
+/* ── Liste modèles DAI (pour la page options) ─────────────────── */
+async function getDAIModelList() {
+  const baseUrl = await getDAIUrl();
+  try {
+    const res = await fetch(baseUrl + '/api/tags', { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return { ok: false, error: 'API', detail: 'HTTP ' + res.status };
+    const data   = await res.json();
+    const models = (data.models || []).map(m => m.name).filter(Boolean);
+    return { ok: true, models };
+  } catch (e) { return { ok: false, error: 'NETWORK' }; }
+}
+
+/* ── Notifications ──────────────────────────────────────────── */
 async function notify(title, body, tag) {
   try {
     const s = await chrome.storage.local.get('notif_enabled');
-    if (s.notif_enabled === false) return { ok: false, error: 'OFF' };  /* défaut activé (v1.9.58) */
+    if (s.notif_enabled === false) return { ok: false, error: 'OFF' };
     const id = (tag || 'artis') + '_' + Date.now();
     chrome.notifications.create(id, {
       type: 'basic',
@@ -329,7 +448,6 @@ async function notify(title, body, tag) {
   }
 }
 
-/* Clic sur la notif → focus l'onglet Artis (ou en ouvre un) */
 chrome.notifications.onClicked.addListener(id => {
   const url = 'https://artis.digithall.org/ArtisWebDigitInvest/';
   chrome.tabs.query({ url: 'https://artis.digithall.org/*' }, tabs => {
@@ -343,16 +461,12 @@ chrome.notifications.onClicked.addListener(id => {
   });
 });
 
-/* ── Cache des pages déjà transmises, par onglet ──────────────
-   Le content script n'envoie que le DELTA (pages nouvelles/modifiées) ;
-   on fusionne ici avec ce qu'on a déjà. SW redémarré → cache vide →
-   le client renvoie tout (il interroge GILES_PAGES_STATE avant). */
-const _pageStore = {};   // tabId -> { url: {url,title,text,time} }
+/* ── Cache pages par onglet ─────────────────────────────────── */
+const _pageStore = {};
 
 function mergePages(tabId, delta, urls) {
   const store = _pageStore[tabId] || (_pageStore[tabId] = {});
   (delta || []).forEach(p => { if (p && p.url) store[p.url] = p; });
-  /* Pages évincées côté client (budget) → on les retire aussi ici */
   if (Array.isArray(urls)) {
     for (const u of Object.keys(store)) if (!urls.includes(u)) delete store[u];
   }
@@ -367,32 +481,44 @@ function pagesForMessage(msg, sender) {
 
 chrome.tabs.onRemoved.addListener(tabId => { delete _pageStore[tabId]; });
 
-/* Port long-lived pour GILLES_ASK (évite le bug MV3 "message port closed") */
+/* ── Port long-lived GILLES_ASK ──────────────────────────────── */
 chrome.runtime.onConnect.addListener(port => {
   if (port.name !== 'gilles-ask') return;
   port.onMessage.addListener(async msg => {
     if (!msg || msg.type !== 'GILLES_ASK') return;
-    /* systemPreset (ex: 'reform') → préprompt chargé depuis son .md bundlé */
     const override = msg.systemPreset ? await getPresetPrompt(msg.systemPreset) : (msg.systemOverride || null);
-    askGemini(msg.history, pagesForMessage(msg, port.sender), override).then(resp => {
+    askLLM(msg.history, pagesForMessage(msg, port.sender), override).then(resp => {
       try { port.postMessage(resp); } catch (e) {}
     });
   });
 });
 
-/* Routeur de messages (sendMessage court-terme) */
+/* ── Routeur messages ───────────────────────────────────────── */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return false;
-  if (msg.type === 'GILES_ASK')   { askGemini(msg.history, pagesForMessage(msg, sender)).then(sendResponse); return true; }
+  if (msg.type === 'GILES_ASK') {
+    askLLM(msg.history, pagesForMessage(msg, sender)).then(sendResponse);
+    return true;
+  }
   if (msg.type === 'GILES_PAGES_STATE') {
     const tabId = sender && sender.tab && sender.tab.id != null ? sender.tab.id : -1;
     const store = _pageStore[tabId] || {};
-    const have = {};
+    const have  = {};
     for (const u of Object.keys(store)) have[u] = store[u].time || 0;
     sendResponse({ ok: true, have });
     return false;
   }
-  if (msg.type === 'GILES_PING')  { pingGemini().then(sendResponse);            return true; }
-  if (msg.type === 'ARTIS_NOTIFY'){ notify(msg.title, msg.body, msg.tag).then(sendResponse); return true; }
+  if (msg.type === 'GILES_PING') {
+    getActiveProvider().then(p => pingProvider(p).then(sendResponse));
+    return true;
+  }
+  if (msg.type === 'GILES_DAI_MODELS') {
+    getDAIModelList().then(sendResponse);
+    return true;
+  }
+  if (msg.type === 'ARTIS_NOTIFY') {
+    notify(msg.title, msg.body, msg.tag).then(sendResponse);
+    return true;
+  }
   return false;
 });

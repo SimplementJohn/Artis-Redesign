@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Artis Login Enhancer",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Modernise login + interface interne Artis.net — dark glassmorphism + animations + assistant IA Gilles",
   "permissions": ["storage", "notifications"],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
-    "https://artis.digithall.org/*"
+    "https://artis.digithall.org/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "giles-bg.js"

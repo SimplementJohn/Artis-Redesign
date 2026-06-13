@@ -97,7 +97,7 @@
         <div class="opt-row">
           <div class="opt-label">
             <span class="opt-name">Partage des pages</span>
-            <span class="opt-desc">Envoie le contenu de la page à Gemini pour le contexte</span>
+            <span class="opt-desc">Envoie le contenu de la page à l'IA pour le contexte</span>
           </div>
           <label class="opt-switch">
             <input type="checkbox" id="opt-pages" checked>
@@ -116,27 +116,57 @@
         </div>
       </div>
 
+      <!-- Fournisseur IA -->
       <div class="opt-card">
+        <div class="opt-row opt-row-col">
+          <div class="opt-label">
+            <span class="opt-name">Fournisseur IA</span>
+            <span class="opt-desc">Service utilisé par Gilles pour générer les réponses</span>
+          </div>
+          <div class="opt-seg" id="opt-provider" role="radiogroup" aria-label="Fournisseur IA">
+            <button type="button" data-provider="gemini">Gemini</button>
+            <button type="button" data-provider="openai">OpenAI</button>
+            <button type="button" data-provider="claude">Claude</button>
+            <button type="button" data-provider="dai">DAI</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clé API (masqué pour DAI) -->
+      <div class="opt-card" id="opt-key-card">
         <div class="opt-field-group">
-          <label class="opt-field-label" for="opt-key">Clé API Gemini</label>
+          <label class="opt-field-label" id="opt-key-label" for="opt-key">Clé API</label>
           <div class="opt-field-row">
-            <input type="password" id="opt-key" placeholder="Laisser vide = clé du fichier apigemini.txt" autocomplete="off">
+            <input type="password" id="opt-key" placeholder="Clé API" autocomplete="off">
             <button id="opt-key-save" class="opt-btn opt-btn-primary">Enregistrer</button>
           </div>
           <div class="opt-hint" id="opt-key-hint"></div>
         </div>
       </div>
 
+      <!-- URL serveur DAI (affiché uniquement pour DAI) -->
+      <div class="opt-card" id="opt-dai-card" hidden>
+        <div class="opt-field-group">
+          <label class="opt-field-label" for="opt-dai-url">URL serveur DAI</label>
+          <div class="opt-field-row">
+            <input type="url" id="opt-dai-url" placeholder="http://localhost:11434" autocomplete="off">
+            <button id="opt-dai-url-save" class="opt-btn opt-btn-primary">Enregistrer</button>
+          </div>
+          <div class="opt-hint">Serveur Ollama local ou endpoint compatible OpenAI (<code>/v1/chat/completions</code>).</div>
+        </div>
+      </div>
+
+      <!-- Modèle préféré -->
       <div class="opt-card">
         <div class="opt-field-group">
-          <label class="opt-field-label" for="opt-model">Modèle Gemini préféré</label>
-          <select id="opt-model">
-            <option value="">Automatique (recommandé)</option>
-            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (rapide)</option>
-            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-          </select>
-          <div class="opt-hint">En cas d'indisponibilité, le fallback automatique prend le relais.</div>
+          <label class="opt-field-label" for="opt-model">Modèle préféré</label>
+          <div class="opt-field-row">
+            <select id="opt-model">
+              <option value="">Automatique (recommandé)</option>
+            </select>
+            <button id="opt-model-refresh" class="opt-btn opt-btn-secondary" title="Actualiser la liste des modèles">↻</button>
+          </div>
+          <div class="opt-hint" id="opt-model-hint">En cas d'indisponibilité, le fallback automatique prend le relais.</div>
         </div>
       </div>
 
