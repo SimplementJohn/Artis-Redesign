@@ -296,13 +296,38 @@ function fmtTime(ts) {
   try { return new Date(ts).toLocaleString('fr-FR'); } catch (e) { return String(ts); }
 }
 
+/* ── Chaîne de fallback ──────────────────────────────────────── */
+async function getFallbackChain() {
+  const s = await chrome.storage.local.get(['giles_fallback_order', 'giles_fallback_enabled',
+    'giles_provider', 'key_gemini', 'key_openai', 'key_claude', 'dai_url', 'giles_api_key']);
+
+  /* Si pas encore de bootorder configuré → migration depuis giles_provider */
+  let order   = s.giles_fallback_order;
+  let enabled = s.giles_fallback_enabled;
+  if (!order) {
+    const legacy = s.giles_provider || 'gemini';
+    order   = ['gemini', 'openai', 'claude', 'dai'];
+    enabled = { gemini: legacy === 'gemini', openai: legacy === 'openai',
+                claude: legacy === 'claude', dai: legacy === 'dai' };
+  }
+
+  /* Filtre : activé + a une clé (sauf DAI qui a une URL par défaut) */
+  return order.filter(p => {
+    if (enabled[p] === false) return false;
+    if (p === 'gemini') return !!(s.key_gemini || s.giles_api_key);
+    if (p === 'openai') return !!s.key_openai;
+    if (p === 'claude') return !!s.key_claude;
+    if (p === 'dai')    return true; /* DAI : localhost par défaut */
+    return false;
+  });
+}
+
 /* ── Fonction principale ─────────────────────────────────────── */
 async function askLLM(history, pages, systemOverride) {
   swKeepAlive();
   try {
-    const provider = await getActiveProvider();
-    const key      = await getKeyFor(provider);
-    if (provider !== 'dai' && !key) return { ok: false, error: 'NO_KEY' };
+    const chain = await getFallbackChain();
+    if (!chain.length) return { ok: false, error: 'NO_KEY' };
 
     const lastUser = [...(history || [])].reverse().find(m => m && m.role !== 'assistant' && m.text);
     const query    = lastUser ? lastUser.text : '';
@@ -348,19 +373,28 @@ async function askLLM(history, pages, systemOverride) {
     while (messages.length && messages[0].role !== 'user') messages.shift();
     if (!messages.length) return { ok: false, error: 'EMPTY' };
 
-    const models = await getModelsFor(provider);
-    if (!models.length) return { ok: false, error: 'NO_MODEL' };
-
+    const RETRYABLE_PROVIDER = ['QUOTA', 'OVERLOAD', 'KEY_INVALID', 'NETWORK', 'API'];
+    const RETRYABLE_MODEL    = ['QUOTA', 'MODEL', 'OVERLOAD'];
     let last = { ok: false, error: 'UNKNOWN' };
-    const RETRYABLE = ['QUOTA', 'MODEL', 'OVERLOAD'];
-    for (let i = 0; i < models.length; i++) {
-      const r = await callLLM(provider, models[i], key, systemText, messages);
-      if (r.ok) return r;
-      last = r;
-      if (!RETRYABLE.includes(r.error)) break;
-      /* pas de fallback multi-modèle pour DAI */
-      if (provider === 'dai') break;
-      if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));
+
+    /* Itère la chaîne de fallback provider par provider */
+    for (const provider of chain) {
+      const key    = await getKeyFor(provider);
+      const models = await getModelsFor(provider);
+      if (!models.length) { last = { ok: false, error: 'NO_MODEL' }; continue; }
+
+      let providerOk = false;
+      for (let i = 0; i < models.length; i++) {
+        const r = await callLLM(provider, models[i], key, systemText, messages);
+        if (r.ok) return Object.assign(r, { provider });
+        last = r;
+        if (!RETRYABLE_MODEL.includes(r.error)) break;
+        if (provider === 'dai') break;
+        if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));
+      }
+      if (providerOk) break;
+      /* Si l'erreur n'est pas liée au provider (ex: réseau), on peut tenter le suivant */
+      if (!RETRYABLE_PROVIDER.includes(last.error)) break;
     }
     return last;
   } finally { swStopAlive(); }
@@ -509,7 +543,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
   if (msg.type === 'GILES_PING') {
-    getActiveProvider().then(p => pingProvider(p).then(sendResponse));
+    getFallbackChain().then(chain => {
+      if (!chain.length) { sendResponse({ ok: false, error: 'NO_KEY' }); return; }
+      const provider = chain[0];
+      pingProvider(provider).then(r => sendResponse(Object.assign(r, { provider })));
+    });
     return true;
   }
   if (msg.type === 'GILES_DAI_MODELS') {

@@ -3,6 +3,17 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.2.0 — 2026-06-13
+
+**Bootorder & fallback multi-provider :**
+- Page paramètres : 4 champs de clés API toujours visibles (Gemini · OpenAI · Claude · DAI/Ollama), chacun avec badge coloré, statut clé ✓/✗, et sélecteur de modèle préféré.
+- `#opt-bootorder` : liste drag-and-drop ordonnée des providers — réorganisation par glisser-déposer, toggle actif/inactif par provider.
+- `giles_fallback_order` + `giles_fallback_enabled` persistés dans `chrome.storage.local`.
+- `giles-bg.js` : `getFallbackChain()` construit la chaîne active filtrée (provider activé + clé présente) ; `askLLM` itère la chaîne et bascule automatiquement vers le provider suivant sur erreur `QUOTA`, `OVERLOAD`, `KEY_INVALID`, `NETWORK`, `API`.
+- `GILES_PING` retourne `{ ok, provider }` — identifie le premier provider opérationnel.
+- Migration automatique depuis `giles_provider` (ancien sélecteur unique) vers le nouveau système.
+- DAI accessible sans clé (URL localhost par défaut).
+
 ## 2.1.1 — 2026-06-13
 
 **Optimisations performance (audit complet) :**

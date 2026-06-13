@@ -3,15 +3,50 @@ const $ = id => document.getElementById(id);
 const STORAGE_KEYS = [
   'artis_enabled', 'artis_theme_mode', 'artis_version_btn',
   'giles_enabled', 'giles_page_share',
-  'giles_api_key',                  /* legacy Gemini key */
-  'giles_provider',
-  'key_gemini', 'key_openai', 'key_claude',
-  'dai_url',
-  'giles_model_pref',               /* legacy Gemini model */
-  'giles_model_pref_gemini', 'giles_model_pref_openai',
-  'giles_model_pref_claude', 'giles_model_pref_dai',
+  'giles_api_key',                  /* legacy Gemini */
+  'giles_provider',                 /* legacy single provider */
+  'key_gemini', 'key_openai', 'key_claude', 'dai_url',
+  'giles_fallback_order', 'giles_fallback_enabled',
+  'giles_model_pref', 'giles_model_pref_gemini',
+  'giles_model_pref_openai', 'giles_model_pref_claude', 'giles_model_pref_dai',
   'notif_enabled', 'dit_interval', 'giles_mem_limit',
 ];
+
+const PROVIDER_META = {
+  gemini: {
+    label: 'Gemini',
+    models: [
+      { value: '', label: 'Auto' },
+      { value: 'gemini-2.5-flash-lite', label: '2.5 Flash Lite' },
+      { value: 'gemini-2.5-flash',      label: '2.5 Flash' },
+      { value: 'gemini-2.0-flash',      label: '2.0 Flash' },
+    ],
+  },
+  openai: {
+    label: 'OpenAI',
+    models: [
+      { value: '', label: 'Auto' },
+      { value: 'gpt-4.1-mini', label: '4.1 Mini' },
+      { value: 'gpt-4o-mini',  label: '4o Mini' },
+      { value: 'gpt-4.1',      label: 'GPT-4.1' },
+    ],
+  },
+  claude: {
+    label: 'Claude',
+    models: [
+      { value: '', label: 'Auto' },
+      { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+      { value: 'claude-sonnet-4-6',         label: 'Sonnet 4.6' },
+    ],
+  },
+  dai: {
+    label: 'DAI',
+    models: [], /* dynamique */
+  },
+};
+
+const DEFAULT_ORDER   = ['gemini', 'openai', 'claude', 'dai'];
+const DEFAULT_ENABLED = { gemini: true, openai: false, claude: false, dai: false };
 
 /* ── Navigation ── */
 document.querySelectorAll('.opt-nav-item').forEach(item => {
@@ -54,163 +89,253 @@ MODE_BTNS.forEach(b => b.addEventListener('click', () => {
   toast('Thème mis à jour');
 }));
 
-/* ── Provider ── */
-const PROVIDER_INFO = {
-  gemini: { label: 'Clé API Gemini',     placeholder: 'AIza…',     hint: 'Google AI Studio — generativelanguage.googleapis.com' },
-  openai: { label: 'Clé API OpenAI',     placeholder: 'sk-…',      hint: 'platform.openai.com' },
-  claude: { label: 'Clé API Anthropic',  placeholder: 'sk-ant-…',  hint: 'console.anthropic.com' },
-  dai:    { label: null,                  placeholder: null,         hint: null },
-};
+/* ── Clés API — champs visibles pour tous les providers ────── */
 
-const PROVIDER_MODELS_LIST = {
-  gemini: [
-    { value: '',                        label: 'Automatique (recommandé)' },
-    { value: 'gemini-2.5-flash-lite',   label: 'gemini-2.5-flash-lite (rapide)' },
-    { value: 'gemini-2.5-flash',        label: 'gemini-2.5-flash' },
-    { value: 'gemini-2.0-flash',        label: 'gemini-2.0-flash' },
-  ],
-  openai: [
-    { value: '',             label: 'Automatique (gpt-4.1-mini)' },
-    { value: 'gpt-4.1-mini', label: 'gpt-4.1-mini (rapide)' },
-    { value: 'gpt-4o-mini',  label: 'gpt-4o-mini' },
-    { value: 'gpt-4.1',      label: 'gpt-4.1' },
-  ],
-  claude: [
-    { value: '',                            label: 'Automatique (Haiku)' },
-    { value: 'claude-haiku-4-5-20251001',   label: 'claude-haiku-4-5 (rapide)' },
-    { value: 'claude-sonnet-4-6',           label: 'claude-sonnet-4-6' },
-  ],
-  dai: [],
-};
-
-let activeProvider = 'gemini';
-const PROVIDER_BTNS = Array.from(document.querySelectorAll('#opt-provider button'));
-
-function paintProvider() {
-  PROVIDER_BTNS.forEach(b => b.classList.toggle('active', b.dataset.provider === activeProvider));
-  const isDai = activeProvider === 'dai';
-  $('opt-key-card').hidden = isDai;
-  $('opt-dai-card').hidden = !isDai;
-
-  if (!isDai) {
-    const info = PROVIDER_INFO[activeProvider];
-    $('opt-key-label').textContent = info.label;
-    $('opt-key').placeholder = info.placeholder || '';
-    $('opt-key').value = '';
-    $('opt-key-hint').textContent = '';
-    /* Indique si une clé est déjà enregistrée */
-    const storKey = 'key_' + activeProvider;
-    chrome.storage.local.get([storKey, 'giles_api_key'], s => {
-      const hasSaved = s[storKey] || (activeProvider === 'gemini' && s.giles_api_key);
-      if (hasSaved) $('opt-key').placeholder = 'Clé enregistrée ✓';
-    });
-  }
-}
-
-function populateModels(savedPref) {
-  const sel  = $('opt-model');
-  const hint = $('opt-model-hint');
-
-  if (activeProvider === 'dai') {
-    hint.textContent = 'Cliquer ↻ pour charger les modèles du serveur DAI.';
-    fetchDAIModels(savedPref);
+function setKeyStatus(provider, hasKey) {
+  const el = $('opt-status-' + provider);
+  if (!el) return;
+  if (provider === 'dai') {
+    el.className = 'opt-pk-status ' + (hasKey ? 'ok' : 'miss');
+    el.textContent = hasKey ? 'configuré ✓' : 'non configuré';
     return;
   }
-
-  const models = PROVIDER_MODELS_LIST[activeProvider] || [];
-  sel.innerHTML = models.map(m => `<option value="${m.value}">${m.label}</option>`).join('');
-  if (savedPref !== undefined && savedPref !== null) sel.value = savedPref || '';
-  hint.textContent = activeProvider === 'gemini'
-    ? 'En cas d\'indisponibilité, le fallback automatique prend le relais.'
-    : '';
+  el.className = 'opt-pk-status ' + (hasKey ? 'ok' : 'miss');
+  el.textContent = hasKey ? 'clé ✓' : 'pas de clé';
 }
 
-function fetchDAIModels(savedPref) {
-  const sel  = $('opt-model');
-  const hint = $('opt-model-hint');
-  sel.innerHTML = '<option value="">Chargement…</option>';
-  chrome.runtime.sendMessage({ type: 'GILES_DAI_MODELS' }, resp => {
-    if (chrome.runtime.lastError || !resp || !resp.ok) {
-      sel.innerHTML = '<option value="">Serveur DAI inaccessible</option>';
-      hint.textContent = 'Vérifier l\'URL et que le serveur est démarré.';
-      return;
-    }
-    const models = resp.models || [];
-    if (!models.length) {
-      sel.innerHTML = '<option value="">Aucun modèle trouvé</option>';
-      hint.textContent = 'Serveur joignable mais aucun modèle installé.';
-      return;
-    }
-    sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-    if (savedPref && models.includes(savedPref)) sel.value = savedPref;
-    hint.textContent = models.length + ' modèle(s) disponible(s)';
+function loadKeyStatuses(s) {
+  ['gemini', 'openai', 'claude'].forEach(p => {
+    const hasKey = !!(s['key_' + p] || (p === 'gemini' && s.giles_api_key));
+    setKeyStatus(p, hasKey);
   });
+  setKeyStatus('dai', !!s.dai_url);
+  if (s.dai_url) $('opt-dai-url').value = s.dai_url;
 }
 
-PROVIDER_BTNS.forEach(b => b.addEventListener('click', () => {
-  if (b.dataset.provider === activeProvider) return;
-  activeProvider = b.dataset.provider;
-  chrome.storage.local.set({ giles_provider: activeProvider });
-  paintProvider();
-  /* Charger le pref modèle pour ce provider */
-  const prefKey = 'giles_model_pref_' + activeProvider;
-  chrome.storage.local.get([prefKey, 'giles_model_pref'], s => {
-    const pref = s[prefKey] || (activeProvider === 'gemini' ? s.giles_model_pref : '') || '';
-    populateModels(pref);
-  });
-  checkApi();
-  toast('Fournisseur : ' + (PROVIDER_INFO[activeProvider].label || activeProvider));
-}));
-
-/* ── Clé API ── */
-$('opt-key-save').addEventListener('click', () => {
-  const val  = $('opt-key').value.trim();
-  const hint = $('opt-key-hint');
-  const storKey = 'key_' + activeProvider;
+/* Sauvegarde clé générique */
+function saveKey(provider, val) {
+  const storKey = provider === 'dai' ? 'dai_url' : 'key_' + provider;
+  const hint = $('opt-hint-' + provider);
   if (val) {
     chrome.storage.local.set({ [storKey]: val }, () => {
-      hint.textContent = 'Clé enregistrée ✓';
-      $('opt-key').value = '';
-      $('opt-key').placeholder = 'Clé enregistrée ✓';
+      if (hint) { hint.textContent = 'Enregistré ✓'; setTimeout(() => { if (hint) hint.textContent = ''; }, 2500); }
+      setKeyStatus(provider, true);
+      updateBootorderStatuses();
       checkApi();
-      toast('Clé API enregistrée');
+      toast((PROVIDER_META[provider] || {}).label + ' — enregistré');
     });
   } else {
     chrome.storage.local.remove(storKey, () => {
-      hint.textContent = 'Clé effacée';
-      $('opt-key').placeholder = PROVIDER_INFO[activeProvider].placeholder || '';
+      if (hint) { hint.textContent = 'Effacé'; setTimeout(() => { if (hint) hint.textContent = ''; }, 2500); }
+      setKeyStatus(provider, false);
+      updateBootorderStatuses();
       checkApi();
-      toast('Clé API effacée');
+      toast((PROVIDER_META[provider] || {}).label + ' — clé effacée');
     });
   }
-  setTimeout(() => { hint.textContent = ''; }, 3000);
-});
+}
 
-/* ── URL serveur DAI ── */
-$('opt-dai-url-save').addEventListener('click', () => {
-  const val = $('opt-dai-url').value.trim();
-  if (!val) return;
-  chrome.storage.local.set({ dai_url: val }, () => {
-    toast('URL DAI enregistrée');
-    fetchDAIModels();
-    checkApi();
+['gemini', 'openai', 'claude'].forEach(p => {
+  const btn = $('opt-save-' + p);
+  const inp = $('opt-key-' + p);
+  if (!btn || !inp) return;
+  btn.addEventListener('click', () => {
+    saveKey(p, inp.value.trim());
+    inp.value = '';
   });
 });
 
-/* ── Modèle ── */
-$('opt-model-refresh').addEventListener('click', () => {
-  if (activeProvider === 'dai') {
-    fetchDAIModels();
-  }
+$('opt-save-dai').addEventListener('click', () => {
+  saveKey('dai', $('opt-dai-url').value.trim());
 });
 
-$('opt-model').addEventListener('change', e => {
-  const key = 'giles_model_pref_' + activeProvider;
-  chrome.storage.local.set({ [key]: e.target.value });
-  toast('Modèle enregistré');
-});
+/* ── Bootorder ──────────────────────────────────────────────── */
+let boOrder   = [...DEFAULT_ORDER];
+let boEnabled = Object.assign({}, DEFAULT_ENABLED);
+let boModels  = {};   /* provider → saved model pref */
+let daiModels = [];   /* liste dynamique serveur DAI */
 
-/* ── Mémoire conversation Gilles ── */
+/* État des clés (pour badges dans bootorder) */
+const _keyState = { gemini: false, openai: false, claude: false, dai: false };
+
+function updateBootorderStatuses() {
+  chrome.storage.local.get(['key_gemini', 'key_openai', 'key_claude', 'dai_url', 'giles_api_key'], s => {
+    _keyState.gemini = !!(s.key_gemini || s.giles_api_key);
+    _keyState.openai = !!s.key_openai;
+    _keyState.claude = !!s.key_claude;
+    _keyState.dai    = !!s.dai_url;
+    renderBootorder();
+  });
+}
+
+function saveFallbackState() {
+  chrome.storage.local.set({ giles_fallback_order: boOrder, giles_fallback_enabled: boEnabled });
+}
+
+function renderBootorder() {
+  const container = $('opt-bootorder');
+  if (!container) return;
+  container.innerHTML = '';
+
+  boOrder.forEach((provider, idx) => {
+    const meta    = PROVIDER_META[provider];
+    const enabled = boEnabled[provider] !== false;
+    const hasKey  = _keyState[provider];
+    const pos     = boOrder.filter(p => boEnabled[p] !== false).indexOf(provider) + 1;
+
+    const item = document.createElement('div');
+    item.className = 'opt-bo-item' + (enabled ? '' : ' disabled');
+    item.setAttribute('draggable', 'true');
+    item.setAttribute('role', 'listitem');
+    item.dataset.provider = provider;
+
+    /* Position dans la chaîne active */
+    const posEl = document.createElement('span');
+    posEl.className = 'opt-bo-pos';
+    posEl.textContent = enabled ? pos : '—';
+
+    /* Handle drag */
+    const handle = document.createElement('span');
+    handle.className = 'opt-bo-handle';
+    handle.setAttribute('aria-hidden', 'true');
+    handle.innerHTML = '⠿';
+
+    /* Toggle */
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = 'opt-switch';
+    toggleLabel.title = enabled ? 'Désactiver ce provider' : 'Activer ce provider';
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.checked = enabled;
+    toggleInput.addEventListener('change', e => {
+      boEnabled[provider] = e.target.checked;
+      saveFallbackState();
+      renderBootorder();
+      checkApi();
+      toast(meta.label + (e.target.checked ? ' activé' : ' désactivé'));
+    });
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'opt-slider';
+    toggleLabel.appendChild(toggleInput);
+    toggleLabel.appendChild(toggleSlider);
+
+    /* Badge */
+    const badge = document.createElement('span');
+    badge.className = 'opt-pk-badge ' + provider;
+    badge.textContent = meta.label;
+
+    /* Nom */
+    const name = document.createElement('span');
+    name.className = 'opt-bo-name';
+    name.textContent = meta.label;
+
+    /* Model select */
+    const modelSel = document.createElement('select');
+    modelSel.className = 'opt-bo-model';
+    modelSel.title = 'Modèle préféré pour ' + meta.label;
+
+    if (provider === 'dai') {
+      const autoOpt = document.createElement('option');
+      autoOpt.value = '';
+      autoOpt.textContent = 'Auto';
+      modelSel.appendChild(autoOpt);
+      daiModels.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m;
+        o.textContent = m;
+        modelSel.appendChild(o);
+      });
+      if (daiModels.length === 0) {
+        const o = document.createElement('option');
+        o.value = '';
+        o.textContent = '— charger ↻ —';
+        o.disabled = true;
+        modelSel.appendChild(o);
+      }
+    } else {
+      meta.models.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.value;
+        o.textContent = m.label;
+        modelSel.appendChild(o);
+      });
+    }
+    const savedModel = boModels['giles_model_pref_' + provider]
+      || (provider === 'gemini' ? boModels.giles_model_pref : '') || '';
+    modelSel.value = savedModel;
+    modelSel.addEventListener('change', e => {
+      const key = 'giles_model_pref_' + provider;
+      chrome.storage.local.set({ [key]: e.target.value });
+      boModels[key] = e.target.value;
+    });
+
+    /* Refresh button pour DAI */
+    if (provider === 'dai') {
+      const refresh = document.createElement('button');
+      refresh.type = 'button';
+      refresh.className = 'opt-btn opt-btn-secondary';
+      refresh.style.cssText = 'padding:4px 8px;font-size:.75rem;flex-shrink:0';
+      refresh.title = 'Actualiser les modèles DAI';
+      refresh.textContent = '↻';
+      refresh.addEventListener('click', () => fetchDAIModels());
+      item.append(posEl, handle, toggleLabel, badge, name, modelSel, refresh);
+    } else {
+      item.append(posEl, handle, toggleLabel, badge, name, modelSel);
+    }
+
+    /* Status clé */
+    const status = document.createElement('span');
+    status.className = 'opt-pk-status ' + (hasKey ? 'ok' : 'miss');
+    status.style.flexShrink = '0';
+    status.textContent = provider === 'dai'
+      ? (hasKey ? 'URL ✓' : 'localhost')
+      : (hasKey ? '✓' : '✗');
+    item.appendChild(status);
+
+    /* Drag & Drop */
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', provider);
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      container.querySelectorAll('.opt-bo-item').forEach(i => i.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll('.opt-bo-item').forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      const fromProvider = e.dataTransfer.getData('text/plain');
+      if (fromProvider === provider) return;
+      const fromIdx = boOrder.indexOf(fromProvider);
+      const toIdx   = boOrder.indexOf(provider);
+      boOrder.splice(fromIdx, 1);
+      boOrder.splice(toIdx, 0, fromProvider);
+      saveFallbackState();
+      renderBootorder();
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function fetchDAIModels() {
+  chrome.runtime.sendMessage({ type: 'GILES_DAI_MODELS' }, resp => {
+    if (chrome.runtime.lastError || !resp || !resp.ok) return;
+    daiModels = resp.models || [];
+    renderBootorder();
+    toast('Modèles DAI chargés : ' + daiModels.length);
+  });
+}
+
+/* ── Mémoire conversation ── */
 $('opt-mem').addEventListener('input', e => {
   $('opt-mem-val').textContent = e.target.value + ' messages';
 });
@@ -275,17 +400,12 @@ $('opt-dit-interval').addEventListener('change', e => {
 
 /* ── API état ── */
 const API_ERR = {
-  NO_KEY:     'Aucune clé API',
-  KEY_INVALID:'Clé API invalide',
-  QUOTA:      'Quota dépassé',
-  OVERLOAD:   'Serveur surchargé',
-  MODEL:      'Modèle indisponible',
-  NO_MODEL:   'Aucun modèle configuré',
-  API:        'Erreur API',
-  NETWORK:    'Pas de connexion',
-  PARSE:      'Réponse illisible',
-  EXT:        'Service worker injoignable',
-  UNKNOWN:    'Erreur inconnue',
+  NO_KEY: 'Aucune clé active', KEY_INVALID: 'Clé invalide',
+  QUOTA: 'Quota dépassé', OVERLOAD: 'Serveur surchargé',
+  MODEL: 'Modèle indisponible', NO_MODEL: 'Aucun modèle configuré',
+  API: 'Erreur API', NETWORK: 'Pas de connexion',
+  PARSE: 'Réponse illisible', EXT: 'Service worker injoignable',
+  UNKNOWN: 'Erreur inconnue',
 };
 
 function setApi(state, text) {
@@ -297,11 +417,14 @@ function setApi(state, text) {
 }
 
 function checkApi() {
-  setApi('checking', "Vérification de l'API…");
+  setApi('checking', "Vérification de la chaîne de fallback…");
   try {
     chrome.runtime.sendMessage({ type: 'GILES_PING' }, resp => {
       if (chrome.runtime.lastError) { setApi('fail', API_ERR.EXT); return; }
-      if (resp && resp.ok) { setApi('ok', 'API connectée — Gilles opérationnel'); return; }
+      if (resp && resp.ok) {
+        setApi('ok', 'Gilles opérationnel' + (resp.provider ? ' — ' + (PROVIDER_META[resp.provider] || {}).label : ''));
+        return;
+      }
       const code = (resp && resp.error) || 'UNKNOWN';
       setApi('fail', (API_ERR[code] || API_ERR.UNKNOWN) + ' (' + code + ')');
     });
@@ -329,27 +452,41 @@ chrome.storage.local.get(STORAGE_KEYS, s => {
   $('opt-mem').value = mem;
   $('opt-mem-val').textContent = mem + ' messages';
 
-  /* Provider */
-  activeProvider = s.giles_provider || 'gemini';
-  paintProvider();
+  /* Clés */
+  loadKeyStatuses(s);
+  _keyState.gemini = !!(s.key_gemini || s.giles_api_key);
+  _keyState.openai = !!s.key_openai;
+  _keyState.claude = !!s.key_claude;
+  _keyState.dai    = !!s.dai_url;
 
-  /* Modèle pour ce provider (avec compat legacy gemini) */
-  const modelPref = s['giles_model_pref_' + activeProvider]
-    || (activeProvider === 'gemini' ? s.giles_model_pref : '')
-    || '';
-  populateModels(modelPref);
+  /* Bootorder */
+  boOrder   = s.giles_fallback_order   || [...DEFAULT_ORDER];
+  boEnabled = Object.assign({}, DEFAULT_ENABLED, s.giles_fallback_enabled || {});
 
-  /* URL DAI */
-  if (s.dai_url) $('opt-dai-url').value = s.dai_url;
+  /* Model prefs (pour les selects du bootorder) */
+  boModels = {
+    giles_model_pref: s.giles_model_pref || '',
+    giles_model_pref_gemini: s.giles_model_pref_gemini || '',
+    giles_model_pref_openai: s.giles_model_pref_openai || '',
+    giles_model_pref_claude: s.giles_model_pref_claude || '',
+    giles_model_pref_dai:    s.giles_model_pref_dai    || '',
+  };
 
+  /* Migration : si un provider était sélectionné et activé, l'activer dans la chaîne */
+  if (s.giles_provider && !s.giles_fallback_enabled) {
+    boEnabled = Object.assign({}, DEFAULT_ENABLED, { [s.giles_provider]: true });
+    saveFallbackState();
+  }
+
+  renderBootorder();
   checkApi();
 });
 
 /* ── Export ── */
 $('opt-export').addEventListener('click', () => {
   chrome.storage.local.get(STORAGE_KEYS, data => {
-    /* Exclut les clés API de l'export (sécurité) */
     const safe = Object.assign({}, data);
+    /* Exclut les clés API de l'export */
     delete safe.giles_api_key;
     delete safe.key_gemini;
     delete safe.key_openai;

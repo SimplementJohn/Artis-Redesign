@@ -83,6 +83,7 @@
     <section class="opt-section" id="sec-gilles">
       <h1 class="opt-h1">Assistant Gilles</h1>
 
+      <!-- Toggles de base -->
       <div class="opt-card">
         <div class="opt-row">
           <div class="opt-label">
@@ -116,57 +117,86 @@
         </div>
       </div>
 
-      <!-- Fournisseur IA -->
-      <div class="opt-card">
-        <div class="opt-row opt-row-col">
-          <div class="opt-label">
-            <span class="opt-name">Fournisseur IA</span>
-            <span class="opt-desc">Service utilisé par Gilles pour générer les réponses</span>
-          </div>
-          <div class="opt-seg" id="opt-provider" role="radiogroup" aria-label="Fournisseur IA">
-            <button type="button" data-provider="gemini">Gemini</button>
-            <button type="button" data-provider="openai">OpenAI</button>
-            <button type="button" data-provider="claude">Claude</button>
-            <button type="button" data-provider="dai">DAI</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Clé API (masqué pour DAI) -->
-      <div class="opt-card" id="opt-key-card">
-        <div class="opt-field-group">
-          <label class="opt-field-label" id="opt-key-label" for="opt-key">Clé API</label>
-          <div class="opt-field-row">
-            <input type="password" id="opt-key" placeholder="Clé API" autocomplete="off">
-            <button id="opt-key-save" class="opt-btn opt-btn-primary">Enregistrer</button>
-          </div>
-          <div class="opt-hint" id="opt-key-hint"></div>
-        </div>
-      </div>
-
-      <!-- URL serveur DAI (affiché uniquement pour DAI) -->
-      <div class="opt-card" id="opt-dai-card" hidden>
-        <div class="opt-field-group">
-          <label class="opt-field-label" for="opt-dai-url">URL serveur DAI</label>
-          <div class="opt-field-row">
-            <input type="url" id="opt-dai-url" placeholder="http://localhost:11434" autocomplete="off">
-            <button id="opt-dai-url-save" class="opt-btn opt-btn-primary">Enregistrer</button>
-          </div>
-          <div class="opt-hint">Serveur Ollama local ou endpoint compatible OpenAI (<code>/v1/chat/completions</code>).</div>
-        </div>
-      </div>
-
-      <!-- Modèle préféré -->
+      <!-- Clés API — tous les providers visibles -->
       <div class="opt-card">
         <div class="opt-field-group">
-          <label class="opt-field-label" for="opt-model">Modèle préféré</label>
-          <div class="opt-field-row">
-            <select id="opt-model">
-              <option value="">Automatique (recommandé)</option>
-            </select>
-            <button id="opt-model-refresh" class="opt-btn opt-btn-secondary" title="Actualiser la liste des modèles">↻</button>
+          <div class="opt-name" style="margin-bottom:14px">Clés API</div>
+          <div class="opt-provider-keys">
+
+            <!-- Gemini -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge gemini">Gemini</span>
+                <span class="opt-pk-status miss" id="opt-status-gemini">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-gemini" placeholder="AIza…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="gemini" id="opt-save-gemini">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-gemini">Google AI Studio — generativelanguage.googleapis.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- OpenAI -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge openai">OpenAI</span>
+                <span class="opt-pk-status miss" id="opt-status-openai">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-openai" placeholder="sk-…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="openai" id="opt-save-openai">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-openai">platform.openai.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- Claude -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge claude">Claude</span>
+                <span class="opt-pk-status miss" id="opt-status-claude">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-claude" placeholder="sk-ant-…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="claude" id="opt-save-claude">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-claude">console.anthropic.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- DAI -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge dai">DAI</span>
+                <span class="opt-pk-status miss" id="opt-status-dai">non configuré</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="url" id="opt-dai-url" placeholder="http://localhost:11434" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" id="opt-save-dai">Enregistrer</button>
+              </div>
+              <div class="opt-hint">Serveur Ollama local ou endpoint compatible OpenAI.</div>
+            </div>
+
           </div>
-          <div class="opt-hint" id="opt-model-hint">En cas d'indisponibilité, le fallback automatique prend le relais.</div>
+        </div>
+      </div>
+
+      <!-- Bootorder — ordre de fallback -->
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:4px">Ordre de fallback</div>
+          <div class="opt-desc" style="margin-bottom:12px">
+            Glisser pour réordonner. Gilles essaie chaque provider actif en séquence jusqu'à obtenir une réponse.
+          </div>
+          <div id="opt-bootorder" class="opt-bootorder" role="list" aria-label="Ordre des providers IA"></div>
+          <div class="opt-bo-legend">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            Fallback automatique : quota dépassé, surcharge, clé invalide → provider suivant actif
+          </div>
         </div>
       </div>
 
