@@ -514,14 +514,9 @@ input[type="range"]:focus-visible { box-shadow: var(--o-focus); }
 }
 .opt-bo-handle:active { cursor: grabbing; }
 
-.opt-bo-badge {
-  flex-shrink: 0;
-}
-
-.opt-bo-name {
+/* .opt-bo-item badge prend le flex: 1 restant pour pousser le model select à droite */
+.opt-bo-item .opt-pk-badge {
   flex: 1;
-  font-weight: 600;
-  font-size: 0.9rem;
 }
 
 .opt-bo-model {

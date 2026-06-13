@@ -373,17 +373,17 @@ async function askLLM(history, pages, systemOverride) {
     while (messages.length && messages[0].role !== 'user') messages.shift();
     if (!messages.length) return { ok: false, error: 'EMPTY' };
 
-    const RETRYABLE_PROVIDER = ['QUOTA', 'OVERLOAD', 'KEY_INVALID', 'NETWORK', 'API'];
+    /* Erreurs qui permettent d'essayer le provider suivant dans la chaîne.
+       NETWORK exclu : si réseau down, tous les providers échouent de toute façon. */
+    const RETRYABLE_PROVIDER = ['QUOTA', 'OVERLOAD', 'KEY_INVALID', 'API'];
     const RETRYABLE_MODEL    = ['QUOTA', 'MODEL', 'OVERLOAD'];
     let last = { ok: false, error: 'UNKNOWN' };
 
-    /* Itère la chaîne de fallback provider par provider */
     for (const provider of chain) {
       const key    = await getKeyFor(provider);
       const models = await getModelsFor(provider);
       if (!models.length) { last = { ok: false, error: 'NO_MODEL' }; continue; }
 
-      let providerOk = false;
       for (let i = 0; i < models.length; i++) {
         const r = await callLLM(provider, models[i], key, systemText, messages);
         if (r.ok) return Object.assign(r, { provider });
@@ -392,8 +392,6 @@ async function askLLM(history, pages, systemOverride) {
         if (provider === 'dai') break;
         if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));
       }
-      if (providerOk) break;
-      /* Si l'erreur n'est pas liée au provider (ex: réseau), on peut tenter le suivant */
       if (!RETRYABLE_PROVIDER.includes(last.error)) break;
     }
     return last;

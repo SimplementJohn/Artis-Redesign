@@ -5,10 +5,10 @@
 ### Extension Chrome / Edge — Thème dark glassmorphism + assistant IA pour Artis.net
 
 Transforme l'ERP **Artis.net** en une interface moderne, sombre et fluide,
-avec **Gilles**, un assistant IA intégré (Gemini) qui connaît la doc Artis
-et le contenu des pages visitées.
+avec **Gilles**, un assistant IA multi-provider (Gemini · OpenAI · Claude · Ollama)
+qui connaît la doc Artis et le contenu des pages visitées.
 
-![version](https://img.shields.io/badge/version-2.0.0-6366f1)
+![version](https://img.shields.io/badge/version-2.2.0-6366f1)
 ![manifest](https://img.shields.io/badge/manifest-v3-818cf8)
 ![platform](https://img.shields.io/badge/Chrome%20%7C%20Edge-supported-10b981)
 ![stack](https://img.shields.io/badge/vanilla-JS%20%2B%20CSS-6366f1)
@@ -36,6 +36,7 @@ et le contenu des pages visitées.
 | | |
 |---|---|
 | 💬 **Chat intégré** | Pop-up depuis la sidebar (avatar robot), Markdown, historique local, mémoire réglable 5–30 messages |
+| 🤖 **Multi-provider** | Gemini · OpenAI · Claude · DAI/Ollama — bootorder drag-and-drop, fallback automatique (quota / surcharge / clé invalide → provider suivant) |
 | 📚 **Base de connaissance** | Doc Artis bundlée, récupération ciblée par question |
 | 🧩 **Préprompts en .md** | `GILLES.example.md` / `GILLES_REFORM.example.md` génériques fournis — copiez-les en `GILLES.md` / `GILLES_REFORM.md` (gitignorés) pour vos règles internes, ils priment automatiquement |
 | 📄 **Mémoire des pages** | Se souvient des pages visitées dans la session (désactivable) |
@@ -71,8 +72,9 @@ et le contenu des pages visitées.
 3. Activer le **Mode développeur**
 4. **Charger l'extension non empaquetée** → sélectionner le dossier `extension/`
 5. Ouvrir Artis.net — le thème s'applique automatiquement
-6. **Pour Gilles** : icône de l'extension → **Paramètres avancés** → coller une clé API
-   [Google AI Studio](https://aistudio.google.com/apikey) → Enregistrer
+6. **Pour Gilles** : icône de l'extension → **Paramètres avancés** → section **Clés API** →
+   coller la clé du provider souhaité (Gemini, OpenAI, Claude ou URL Ollama) → Enregistrer.
+   Activer le(s) provider(s) dans la liste **Ordre de fallback** et réordonner par glisser-déposer
 7. *(Optionnel)* Copier `extension/GILLES.example.md` → `extension/GILLES.md` et
    `extension/GILLES_REFORM.example.md` → `extension/GILLES_REFORM.md` pour
    personnaliser les préprompts (fichiers gitignorés, jamais poussés)
@@ -92,7 +94,7 @@ extension/
 ├── app-content.js         # App : thème runtime, observer, toggle, Reformuler, suivi DIT
 ├── app-override.css       # App : thème complet
 ├── giles.js / giles.css   # Gilles : UI chat (pop-up, conversations)
-├── giles-bg.js            # Service worker : appels Gemini, base de connaissance
+├── giles-bg.js            # Service worker : multi-provider LLM, fallback chain, base de connaissance
 ├── GILLES.example.md      # Préprompt système générique (copier en GILLES.md pour personnaliser)
 ├── GILLES_REFORM.example.md # Préprompt Reformuler générique (idem → GILLES_REFORM.md)
 ├── knowledge/ + artis.txt # Doc Artis bundlée (sync via sync-knowledge.ps1)
@@ -118,7 +120,7 @@ ERROR.md      # Journal des erreurs à ne plus refaire
 | `--a-text` | `#e2e8f0` | Texte principal |
 | `--a-green` | `#10b981` | Vert success |
 
-**Typo** : Plus Jakarta Sans (app) · Space Grotesk + DM Sans (login) — bundlées localement.
+**Typo** : DM Sans (corps) · Space Grotesk (titres) — bundlées localement, zéro requête Google Fonts.
 
 ---
 

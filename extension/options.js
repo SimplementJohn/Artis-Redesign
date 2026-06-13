@@ -116,9 +116,18 @@ function loadKeyStatuses(s) {
 function saveKey(provider, val) {
   const storKey = provider === 'dai' ? 'dai_url' : 'key_' + provider;
   const hint = $('opt-hint-' + provider);
+  const origHint = hint ? (hint.dataset.orig || hint.textContent) : '';
+  if (hint && !hint.dataset.orig) hint.dataset.orig = origHint;
+
+  const flashHint = (msg) => {
+    if (!hint) return;
+    hint.textContent = msg;
+    setTimeout(() => { hint.textContent = hint.dataset.orig || ''; }, 2500);
+  };
+
   if (val) {
     chrome.storage.local.set({ [storKey]: val }, () => {
-      if (hint) { hint.textContent = 'Enregistré ✓'; setTimeout(() => { if (hint) hint.textContent = ''; }, 2500); }
+      flashHint('Enregistré ✓');
       setKeyStatus(provider, true);
       updateBootorderStatuses();
       checkApi();
@@ -126,7 +135,7 @@ function saveKey(provider, val) {
     });
   } else {
     chrome.storage.local.remove(storKey, () => {
-      if (hint) { hint.textContent = 'Effacé'; setTimeout(() => { if (hint) hint.textContent = ''; }, 2500); }
+      flashHint('Effacé');
       setKeyStatus(provider, false);
       updateBootorderStatuses();
       checkApi();
@@ -145,7 +154,8 @@ function saveKey(provider, val) {
   });
 });
 
-$('opt-save-dai').addEventListener('click', () => {
+const _saveDai = $('opt-save-dai');
+if (_saveDai) _saveDai.addEventListener('click', () => {
   saveKey('dai', $('opt-dai-url').value.trim());
 });
 
@@ -219,15 +229,10 @@ function renderBootorder() {
     toggleLabel.appendChild(toggleInput);
     toggleLabel.appendChild(toggleSlider);
 
-    /* Badge */
+    /* Badge provider (couleur + label) */
     const badge = document.createElement('span');
     badge.className = 'opt-pk-badge ' + provider;
     badge.textContent = meta.label;
-
-    /* Nom */
-    const name = document.createElement('span');
-    name.className = 'opt-bo-name';
-    name.textContent = meta.label;
 
     /* Model select */
     const modelSel = document.createElement('select');
@@ -278,9 +283,9 @@ function renderBootorder() {
       refresh.title = 'Actualiser les modèles DAI';
       refresh.textContent = '↻';
       refresh.addEventListener('click', () => fetchDAIModels());
-      item.append(posEl, handle, toggleLabel, badge, name, modelSel, refresh);
+      item.append(posEl, handle, toggleLabel, badge, modelSel, refresh);
     } else {
-      item.append(posEl, handle, toggleLabel, badge, name, modelSel);
+      item.append(posEl, handle, toggleLabel, badge, modelSel);
     }
 
     /* Status clé */
