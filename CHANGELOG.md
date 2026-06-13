@@ -3,6 +3,17 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.1.1 — 2026-06-13
+
+**Optimisations performance (audit complet) :**
+- `justejohn.png` → WebP : 161 KB → 47 KB (−71%)
+- `PlusJakartaSans` supprimée (woff2 + @font-face) : −48 KB/page (police inutilisée depuis v2.0.1)
+- `backdrop-filter` réduit de 13 → 10 occurrences : retire `.navbar`, `.card`, `.label-nature` (éléments permanents = layers GPU inutiles en scroll)
+- Failsafe `opacity: 0` : 1.2s → 0.8s (LCP −400ms en cas de lenteur JS)
+- Debounce `resize` canvas (150ms) : évite ~50 recréations de canvas par redimensionnement
+- `knowledge-index.json` : champ `t` (titre) supprimé — inutilisé dans le scoring (−4 KB)
+- `build.ps1` ajouté : script de minification pre-release CSS+JS via `clean-css-cli` + `terser`
+
 ## 2.1.0 — 2026-06-13
 
 - Gilles multi-provider : Gemini · OpenAI GPT · Anthropic Claude · DAI (Ollama). Sélecteur fournisseur + clé par provider + URL serveur DAI + liste modèles dynamique DAI via `/api/tags`. Ferme #5.

@@ -26,9 +26,9 @@
    le body reste visible (pas de blocage). ─────────────────── */
 body { opacity: 0; }
 html.artis-ready body { opacity: 1; transition: opacity 0.28s ease; }
-/* Sécurité : si le JS ne pose jamais la classe, on révèle après 1.2s */
+/* Sécurité : si le JS ne pose jamais la classe, on révèle après 0.8s */
 @keyframes artis-failsafe-reveal { to { opacity: 1; } }
-body { animation: artis-failsafe-reveal 0.01s linear 1.2s forwards; }
+body { animation: artis-failsafe-reveal 0.01s linear 0.8s forwards; }
 
 /* ── Typo (identité visuelle, pas une couleur) ────────────── */
 html, body {
@@ -1457,8 +1457,7 @@ html:not(.artis-light) {
 /* ── Navbar / breadcrumb / page header / tabs — couleurs ───── */
 html:not(.artis-light) {
   .navbar {
-    background: rgba(8,8,24,0.96) !important;
-    backdrop-filter: var(--a-blur) !important;
+    background: rgba(8,8,24,0.98) !important;
     border-bottom: 1px solid rgba(99,102,241,0.15) !important;
     box-shadow: 0 2px 20px rgba(0,0,0,0.4) !important;
     color: var(--a-text) !important;
@@ -1662,9 +1661,8 @@ html:not(.artis-light) {
     border-radius: 5px !important;
     font-weight: 600 !important;
     letter-spacing: 0.02em !important;
-    background: rgba(0,0,0,0.22) !important;
+    background: rgba(0,0,0,0.40) !important;
     color: #fff !important;
-    backdrop-filter: blur(2px) !important;
   }
 
   /* Bloc à planifier — dashed harmonisé indigo */
@@ -1842,9 +1840,7 @@ html:not(.artis-light) {
 /* ── Cards / modals / dropdowns / tooltips — couleurs ──────── */
 html:not(.artis-light) {
   .card {
-    background: rgba(13,13,38,0.88) !important;
-    backdrop-filter: var(--a-blur) !important;
-    -webkit-backdrop-filter: var(--a-blur) !important;
+    background: rgba(13,13,38,0.97) !important;
     border: 1px solid rgba(99,102,241,0.18) !important;
     border-radius: 14px !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.35) !important;
