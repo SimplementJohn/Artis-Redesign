@@ -113,6 +113,8 @@ L'utilisateur décrit les éléments en langage courant + donne souvent un **XPa
 - Éléments `position: sticky` (ex `.page-data-header.sticky-top`) : le strip global de fonds les rend **transparents** → contenu visible derrière au scroll. Tout sticky doit recevoir un fond dark **opaque** explicite.
 - Toolbar TinyMCE inline : créée **au premier focus** de l'éditeur (pas au load) → tout bouton injecté dedans n'apparaît qu'après clic dans la zone de texte. Sur un bouton custom dans la barre : `mousedown → preventDefault()` obligatoire, sinon blur de l'éditeur = TinyMCE cache la barre avant le `click`.
 - Thème clair (v1.9.57) : **zéro recolor** — canvas, nuclear CSS, strips (`initialSweep`, observer) ne tournent QU'EN sombre. La classe `artis-light` est posée en **tout début d'init** (`applyThemePreference()`) pour que `isLightTheme()` soit fiable partout. Toggle theme sidebar = `location.reload()` (un switch live laisse un état mixte). Boutons injectés sidebar = blanc en clair.
+- Anti-FOUC (v2.2.1) : `theme-init.js` (`document_start`) pose `html.artis-light` AVANT le paint, lu d'un MIROIR `localStorage` SYNC (`artis-theme-mode`/`artis-enabled`). `chrome.storage.local` est async = trop tard. **Tout réglage de thème écrit dans chrome.storage DOIT être mirroité dans localStorage par `app-content.js`** (boot + `onChanged`) sinon le prochain `document_start` lira une valeur périmée. Sombre = défaut CSS (`:not(.artis-light)`) → pas de miroir nécessaire pour le dark.
+- Master switch (v2.2.1) : `boot()` est appelé INCONDITIONNELLEMENT et gère lui-même le cas `artis_enabled===false` (`disableThemeSheets`). Ne jamais re-court-circuiter boot() avant — sinon désactivé = thème toujours appliqué (cf ERROR.md).
 - `tagPage()` : regex par CHEMIN complet (`accueil/entreeVisualiser`), jamais par nom d'action seul — `entreeVisualiser.action` existe dans `commun/accueil` ET `services/ccPlanningV2`.
 
 ---
@@ -413,7 +415,8 @@ Partout où Artis utilise son bleu (`#00AEEF`, `bg-artis-default-color`, `text-a
 | `extension/manifest.json` | Manifest V3 — permissions minimales (`storage`, `notifications`), 2 hosts, background, popup |
 | `extension/content.js` | Login : canvas + animations + toggle password + master switch |
 | `extension/login-override.css` | Login : glassmorphism dark |
-| `extension/app-content.js` | App : canvas + nuclear CSS + observer + toggle theme/version + Reformuler + suivi DIT + CHANGELOG + master switch |
+| `extension/theme-init.js` | App `run_at:document_start` : pose `html.artis-light` AVANT le 1er paint depuis le miroir `localStorage` (`artis-theme-mode`/`artis-enabled`) → tue le FOUC noir→blanc. Si désactivé : `sheet.disabled` tôt |
+| `extension/app-content.js` | App : canvas + nuclear CSS + observer + toggle theme/version + Reformuler + suivi DIT + CHANGELOG + master switch + miroir localStorage thème |
 | `extension/app-override.css` | App : thème complet (~3000 lignes — scoper les nouvelles règles, voir règles perf) |
 | `extension/giles.js` | Gilles : UI pop-up IA (chat, mémoire 5, onglet Conversations, capture pages) |
 | `extension/giles.css` | Gilles : styles (glass, light mode, responsive) |

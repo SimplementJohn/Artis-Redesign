@@ -36,7 +36,7 @@ foreach ($f in $cssSrc) {
 }
 
 # JS
-$jsSrc = @("app-content.js", "giles-bg.js", "giles.js", "options.js", "popup.js", "content.js")
+$jsSrc = @("theme-init.js", "app-content.js", "giles-bg.js", "giles.js", "options.js", "popup.js", "content.js")
 foreach ($f in $jsSrc) {
   $src  = "$ext\$f"
   $dest = "$ext\$([System.IO.Path]::GetFileNameWithoutExtension($f)).min.js"

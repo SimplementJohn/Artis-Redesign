@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Artis Login Enhancer",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Modernise login + interface interne Artis.net — dark glassmorphism + animations + assistant IA Gilles",
   "permissions": ["storage", "notifications"],
   "host_permissions": [
@@ -41,6 +41,12 @@
     }
   ],
   "content_scripts": [
+    {
+      "matches": ["https://artis.digithall.org/ArtisWebDigitInvest/*"],
+      "exclude_matches": ["https://artis.digithall.org/*/composants/login/*"],
+      "js": ["theme-init.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": ["https://artis.digithall.org/*/composants/login/*"],
       "js": ["content.js"],

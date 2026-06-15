@@ -3,6 +3,14 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.2.1 — 2026-06-15
+
+**Fix FOUC thème + master switch :**
+- Flash sombre→clair à chaque rechargement (thème clair) supprimé : nouveau `theme-init.js` (`run_at: document_start`) pose `html.artis-light` AVANT le premier paint, lu depuis un miroir `localStorage` synchrone (`artis-theme-mode` / `artis-enabled`) — la vérité `chrome.storage.local` reste async = résolue trop tard.
+- `app-content.js` mirroite `artis_theme_mode`/`artis_enabled` dans `localStorage` (boot + `onChanged`) pour alimenter `theme-init`.
+- Master switch « désactivé » réparé : `boot()` est désormais TOUJOURS appelé (l'ancien garde-fou le sautait quand `artis_enabled===false` → `disableThemeSheets()` jamais exécuté → thème toujours appliqué). Désactiver retire bien le thème en direct.
+- `applyThemePreference()` : `classList.toggle('artis-light', light)` (add ET remove) — corrige une supposition clair de `theme-init` si le mode résolu est sombre.
+
 ## 2.2.0 — 2026-06-13
 
 **Bootorder & fallback multi-provider :**
