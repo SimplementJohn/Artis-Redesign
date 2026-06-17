@@ -232,7 +232,7 @@ async function callOpenAI(model, key, systemText, messages, baseUrl) {
         model,
         messages: [{ role: 'system', content: systemText }, ...messages],
         temperature: 0.4,
-        max_tokens: 8192,
+        max_completion_tokens: 8192,
       }),
     });
   } catch (e) { return { ok: false, error: 'NETWORK' }; }
@@ -278,7 +278,36 @@ async function callClaude(model, key, systemText, messages) {
 
 async function callDAI(model, systemText, messages) {
   const baseUrl = await getDAIUrl();
-  return callOpenAI(model, '', systemText, messages, baseUrl);
+  const url = baseUrl + '/v1/chat/completions';
+  const LANG = 'RÈGLE ABSOLUE : réponds UNIQUEMENT en français, de façon concise (3 phrases max sauf si on te demande plus).';
+  const augmented = messages.map((m, i) =>
+    (i === messages.length - 1 && m.role === 'user')
+      ? { role: 'user', content: LANG + '\n' + m.content }
+      : m
+  );
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: systemText }, ...augmented],
+        temperature: 0.3,
+        max_tokens: 600,
+        stream: false,
+      }),
+    });
+  } catch (e) { return { ok: false, error: 'NETWORK' }; }
+  let data;
+  try { data = await res.json(); } catch (e) { return { ok: false, error: 'PARSE' }; }
+  if (!res.ok || data.error) {
+    const msg = (data.error && data.error.message) || ('HTTP ' + res.status);
+    return { ok: false, error: classifyApiError(res.status, msg), detail: msg, status: res.status };
+  }
+  const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!text) return { ok: false, error: 'NO_TEXT', detail: data.choices && data.choices[0] && data.choices[0].finish_reason };
+  return { ok: true, text: text.trim(), model };
 }
 
 async function callLLM(provider, model, key, systemText, messages) {
@@ -313,10 +342,12 @@ async function getFallbackChain() {
     order   = ['dai', 'gemini', 'openai', 'claude'];
     enabled = { dai: true, gemini: true, openai: legacy === 'openai', claude: legacy === 'claude' };
   }
+  /* Normalise : tout provider absent du storage = désactivé */
+  enabled = Object.assign({ dai: false, gemini: false, openai: false, claude: false }, enabled || {});
 
   /* Filtre : activé + a une clé (sauf DAI qui a une URL par défaut) */
   return order.filter(p => {
-    if (enabled[p] === false) return false;
+    if (!enabled[p]) return false;
     if (p === 'gemini') return !!(s.key_gemini || s.giles_api_key);
     if (p === 'openai') return !!s.key_openai;
     if (p === 'claude') return !!s.key_claude;
@@ -390,7 +421,7 @@ async function askLLM(history, pages, systemOverride) {
       for (let i = 0; i < models.length; i++) {
         const r = await callLLM(provider, models[i], key, systemText, messages);
         if (r.ok) return Object.assign(r, { provider });
-        last = r;
+        last = Object.assign(r, { provider });
         if (!RETRYABLE_MODEL.includes(r.error)) break;
         if (provider === 'dai') break;
         if (r.error === 'OVERLOAD' && i < models.length - 1) await new Promise(rs => setTimeout(rs, 400));

@@ -3,6 +3,17 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.2.5 — 2026-06-17
+
+**Fix Gilles providers — fallback fantôme + DAI verbeux :**
+- Fix `getFallbackChain` : objet `giles_fallback_enabled` incomplet en storage → providers absents traités comme désactivés (plus de Gemini fantôme malgré toggle OFF).
+- Fix messages d'erreur Gilles : plus de "Quota Gemini" hardcodé — message générique + provider réel préfixé (`OpenAI — Quota dépassé.`).
+- Fix `callOpenAI` : `max_tokens` → `max_completion_tokens` (param correct gpt-4.1+).
+- Fix `callDAI` : Ollama ne supporte pas `max_completion_tokens` → param `max_tokens` conservé pour DAI, limité à 600 tokens.
+- Fix `callDAI` : température abaissée à 0.3, règle langue injectée directement dans le dernier message utilisateur (codellama:7b respecte mieux la contrainte dans le message que dans le system prompt).
+- Fix `manifest.json` : ajout `http://172.28.1.232/*` dans `host_permissions` (DAI réseau local bloqué sans cette permission).
+- Fix `last` dans fallback loop : porte maintenant `provider` → erreur finale sait quel provider a échoué.
+
 ## 2.2.4 — 2026-06-17
 
 **Gilles provider label + sidebar version + fixes :**

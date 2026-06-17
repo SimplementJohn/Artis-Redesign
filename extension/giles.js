@@ -19,10 +19,10 @@
 
   /* Messages par code d'erreur (renvoyés par le service worker) */
   const ERR_CODES = {
-    NO_KEY:      "Aucune clé API configurée. Ajoute-la dans la popup de l'extension.",
-    KEY_INVALID: "Clé API invalide. Vérifie la clé dans la popup.",
-    QUOTA:       "Quota Gemini dépassé. Réessaie plus tard, ou utilise une autre clé / active la facturation Google.",
-    OVERLOAD:    "Tous les modèles sont surchargés (forte demande). Réessaie dans quelques instants.",
+    NO_KEY:      "Aucune clé API configurée. Ajoute-la dans les paramètres de l'extension.",
+    KEY_INVALID: "Clé API invalide. Vérifie la clé dans les paramètres.",
+    QUOTA:       "Quota dépassé. Réessaie plus tard ou vérifie ton abonnement.",
+    OVERLOAD:    "Service surchargé (forte demande). Réessaie dans quelques instants.",
     MODEL:       "Modèle indisponible pour cette clé.",
     NETWORK:     "Impossible de joindre le service IA (réseau / hors-ligne).",
     API:         "Le service IA a renvoyé une erreur.",
@@ -34,8 +34,11 @@
     UNKNOWN:     "Erreur inconnue.",
   };
 
-  function errMessage(code, detail) {
-    const base = ERR_CODES[code] || ERR_BASE;
+  const PROVIDER_LABEL = { gemini: 'Gemini', openai: 'OpenAI', claude: 'Claude', dai: 'DAI' };
+
+  function errMessage(code, detail, provider) {
+    const providerStr = provider ? (PROVIDER_LABEL[provider] || provider) + ' — ' : '';
+    const base = providerStr + (ERR_CODES[code] || ERR_BASE);
     const d = detail ? ' — ' + String(detail).slice(0, 140) : '';
     return `⚠️ ${base}${d}\n\n(code : ${code})`;
   }
@@ -276,8 +279,6 @@
     elMsgs.innerHTML = '';
     addBubble('assistant', WELCOME, false);
   }
-  const PROVIDER_LABEL = { gemini: 'Gemini', openai: 'OpenAI', claude: 'Claude', dai: 'DAI' };
-
   function addBubble(role, text, store = true, meta = null) {
     const b = document.createElement('div');
     b.className = 'giles-bubble ' + (role === 'user' ? 'me' : 'bot');
@@ -410,7 +411,8 @@
         } else if (!resp) {
           addBubble('assistant', errMessage('NO_RESP'));
         } else if (!resp.ok) {
-          addBubble('assistant', errMessage(resp.error || 'UNKNOWN', resp.detail));
+          addBubble('assistant', errMessage(resp.error || 'UNKNOWN', resp.detail, resp.provider), false,
+            resp.provider ? { provider: resp.provider, model: resp.model } : null);
         } else {
           addBubble('assistant', resp.text, true, { provider: resp.provider, model: resp.model });
           notifyIfAway('Gilles a répondu', resp.text);
