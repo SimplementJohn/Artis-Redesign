@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Artis Redesign — Paramètres</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <aside class="opt-sidebar">
+    <div class="opt-brand">
+      <img src="justejohn.webp" alt="" class="opt-logo">
+      <div>
+        <div class="opt-brand-name">Artis Redesign</div>
+        <div class="opt-brand-ver" id="opt-ver">v—</div>
+      </div>
+    </div>
+    <nav class="opt-nav" role="tablist" aria-label="Sections des paramètres">
+      <a class="opt-nav-item active" data-section="apparence" role="tab" tabindex="0" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.8-.7 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17c2.8 0 5-2.2 5-5 0-5-4.5-9-10-9z"/></svg>
+        Apparence</a>
+      <a class="opt-nav-item" data-section="gilles" role="tab" tabindex="0" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M8 4h8"/><circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/></svg>
+        Assistant Gilles</a>
+      <a class="opt-nav-item" data-section="divers" role="tab" tabindex="0" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        Divers</a>
+      <a class="opt-nav-item" data-section="donnees" role="tab" tabindex="0" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        Données</a>
+      <a class="opt-nav-item" data-section="apropos" role="tab" tabindex="0" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><circle cx="12" cy="8.2" r=".4" fill="currentColor"/></svg>
+        À propos</a>
+    </nav>
+  </aside>
+
+  <main class="opt-main">
+
+    <!-- ── Apparence ── -->
+    <section class="opt-section active" id="sec-apparence">
+      <h1 class="opt-h1">Apparence</h1>
+
+      <div class="opt-card">
+        <div class="opt-row opt-row-col">
+          <div class="opt-label">
+            <span class="opt-name">Thème</span>
+            <span class="opt-desc">Sombre, clair, ou automatique selon le navigateur</span>
+          </div>
+          <div class="opt-seg" id="opt-mode" role="radiogroup" aria-label="Choix du thème">
+            <button type="button" data-mode="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Sombre</button>
+            <button type="button" data-mode="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg> Auto</button>
+            <button type="button" data-mode="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg> Clair</button>
+          </div>
+          <button type="button" class="opt-limited-btn" id="opt-limited-btn" data-mode="limited">
+            <span class="opt-limited-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h9"/></svg>
+              <span class="opt-limited-text">
+                <span class="opt-limited-name">Limité</span>
+                <span class="opt-limited-desc">Thème clair + bandeau violet uniquement — sans animations ni recolor</span>
+              </span>
+            </span>
+            <span class="opt-limited-check" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="opt-card">
+        <div class="opt-row">
+          <div class="opt-label">
+            <span class="opt-name">Bouton version</span>
+            <span class="opt-desc">Affiche le bouton GitHub + changelog dans la sidebar Artis</span>
+          </div>
+          <label class="opt-switch">
+            <input type="checkbox" id="opt-version" checked>
+            <span class="opt-slider"></span>
+          </label>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">
+            <span class="opt-name">Extension activée</span>
+            <span class="opt-desc">Active ou désactive tout le redesign (rechargement requis)</span>
+          </div>
+          <label class="opt-switch">
+            <input type="checkbox" id="opt-main" checked>
+            <span class="opt-slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Gilles ── -->
+    <section class="opt-section" id="sec-gilles">
+      <h1 class="opt-h1">Assistant Gilles</h1>
+
+      <!-- Toggles de base -->
+      <div class="opt-card">
+        <div class="opt-row">
+          <div class="opt-label">
+            <span class="opt-name">Activer Gilles</span>
+            <span class="opt-desc">Affiche le pop-up IA en bas de chaque page Artis</span>
+          </div>
+          <label class="opt-switch">
+            <input type="checkbox" id="opt-giles" checked>
+            <span class="opt-slider"></span>
+          </label>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">
+            <span class="opt-name">Partage des pages</span>
+            <span class="opt-desc">Envoie le contenu de la page à l'IA pour le contexte</span>
+          </div>
+          <label class="opt-switch">
+            <input type="checkbox" id="opt-pages" checked>
+            <span class="opt-slider"></span>
+          </label>
+        </div>
+        <div class="opt-row opt-row-col">
+          <div class="opt-label">
+            <span class="opt-name">Mémoire de conversation</span>
+            <span class="opt-desc">Nombre de messages envoyés à Gilles comme contexte</span>
+          </div>
+          <div class="opt-slider-row">
+            <input type="range" id="opt-mem" min="5" max="30" step="1" value="15">
+            <span class="opt-slider-val" id="opt-mem-val">15 messages</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clés API — tous les providers visibles -->
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:14px">Clés API</div>
+          <div class="opt-provider-keys">
+
+            <!-- Gemini -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge gemini">Gemini</span>
+                <span class="opt-pk-status miss" id="opt-status-gemini">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-gemini" placeholder="AIza…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="gemini" id="opt-save-gemini">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-gemini">Google AI Studio — generativelanguage.googleapis.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- OpenAI -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge openai">OpenAI</span>
+                <span class="opt-pk-status miss" id="opt-status-openai">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-openai" placeholder="sk-…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="openai" id="opt-save-openai">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-openai">platform.openai.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- Claude -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge claude">Claude</span>
+                <span class="opt-pk-status miss" id="opt-status-claude">pas de clé</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="password" id="opt-key-claude" placeholder="sk-ant-…" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" data-provider="claude" id="opt-save-claude">Enregistrer</button>
+              </div>
+              <div class="opt-hint" id="opt-hint-claude">console.anthropic.com</div>
+            </div>
+
+            <hr class="opt-pk-divider">
+
+            <!-- DAI -->
+            <div class="opt-pk-row">
+              <div class="opt-pk-header">
+                <span class="opt-pk-badge dai">DAI</span>
+                <span class="opt-pk-status miss" id="opt-status-dai">non configuré</span>
+              </div>
+              <div class="opt-field-row">
+                <input type="url" id="opt-dai-url" placeholder="http://localhost:11434" autocomplete="off">
+                <button class="opt-btn opt-btn-primary" id="opt-save-dai">Enregistrer</button>
+              </div>
+              <div class="opt-hint">Serveur Ollama local ou endpoint compatible OpenAI.</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Bootorder — ordre de fallback -->
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:4px">Ordre de fallback</div>
+          <div class="opt-desc" style="margin-bottom:12px">
+            Glisser pour réordonner. Gilles essaie chaque provider actif en séquence jusqu'à obtenir une réponse.
+          </div>
+          <div id="opt-bootorder" class="opt-bootorder" role="list" aria-label="Ordre des providers IA"></div>
+          <div class="opt-bo-legend">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            Fallback automatique : quota dépassé, surcharge, clé invalide → provider suivant actif
+          </div>
+        </div>
+      </div>
+
+      <!-- État API -->
+      <div class="opt-api" id="opt-api">
+        <span class="opt-dot" id="opt-api-dot"></span>
+        <span id="opt-api-txt">Vérification de l'API…</span>
+        <button class="opt-api-retry" id="opt-api-retry" hidden>↻ Réessayer</button>
+      </div>
+    </section>
+
+    <!-- ── Divers ── -->
+    <section class="opt-section" id="sec-divers">
+      <h1 class="opt-h1">Divers</h1>
+
+      <div class="opt-card">
+        <div class="opt-row">
+          <div class="opt-label">
+            <span class="opt-name">Notifications navigateur</span>
+            <span class="opt-desc">Alerte lors de nouvelles DIT détectées</span>
+          </div>
+          <label class="opt-switch">
+            <input type="checkbox" id="opt-notif">
+            <span class="opt-slider"></span>
+          </label>
+        </div>
+        <div class="opt-row opt-row-col">
+          <div class="opt-label">
+            <span class="opt-name">Intervalle autoreload DIT</span>
+            <span class="opt-desc">Fréquence de vérification des nouvelles DIT (secondes)</span>
+          </div>
+          <div class="opt-slider-row">
+            <input type="range" id="opt-dit-interval" min="15" max="300" step="15" value="60">
+            <span class="opt-slider-val" id="opt-dit-interval-val">60 s</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Données ── -->
+    <section class="opt-section" id="sec-donnees">
+      <h1 class="opt-h1">Données</h1>
+
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:6px">Exporter les paramètres</div>
+          <div class="opt-desc" style="margin-bottom:10px">Télécharge un fichier JSON avec tous tes réglages.</div>
+          <button id="opt-export" class="opt-btn opt-btn-secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg> Exporter (JSON)</button>
+        </div>
+      </div>
+
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:6px">Importer des paramètres</div>
+          <div class="opt-desc" style="margin-bottom:10px">Charge un fichier JSON exporté précédemment.</div>
+          <label class="opt-btn opt-btn-secondary" style="cursor:pointer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V9M7 14l5-5 5 5M4 3h16"/></svg> Importer (JSON)
+            <input type="file" id="opt-import" accept=".json" style="display:none">
+          </label>
+          <div class="opt-hint" id="opt-import-hint"></div>
+        </div>
+      </div>
+
+      <div class="opt-card opt-card-danger">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:6px">Réinitialiser tout</div>
+          <div class="opt-desc" style="margin-bottom:10px">Supprime tous les paramètres et remet les valeurs par défaut. Cette action est irréversible.</div>
+          <button id="opt-reset" class="opt-btn opt-btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg> Réinitialiser</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── À propos ── -->
+    <section class="opt-section" id="sec-apropos">
+      <h1 class="opt-h1">À propos</h1>
+
+      <div class="opt-card">
+        <div class="opt-about-hero">
+          <img src="justejohn.webp" alt="" class="opt-about-logo">
+          <div>
+            <div class="opt-about-title">Artis Redesign</div>
+            <div class="opt-about-ver" id="opt-about-ver">v—</div>
+            <div class="opt-desc">Extension Chrome/Edge — dark glassmorphism pour Artis.net</div>
+          </div>
+        </div>
+        <div class="opt-row" style="padding-top:0">
+          <a href="https://github.com/SimplementJohn/Artis-Redesign" target="_blank" class="opt-btn opt-btn-secondary" style="text-decoration:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 5.9 6.6 1-4.7 4.6 1.1 6.5L12 17.4l-5.9 3.1 1.1-6.5L2.5 9.4l6.6-1z"/></svg> GitHub</a>
+          <a href="https://github.com/SimplementJohn/Artis-Redesign/issues" target="_blank" class="opt-btn opt-btn-secondary" style="text-decoration:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="8" width="10" height="11" rx="5"/><path d="M12 8V5M9 5.5 7 3.5M15 5.5l2-2M7 12H3M21 12h-4M7 16l-3 2M17 16l3 2"/></svg> Signaler un bug</a>
+        </div>
+      </div>
+
+      <div class="opt-card">
+        <div class="opt-field-group">
+          <div class="opt-name" style="margin-bottom:10px">Changelog</div>
+          <div class="opt-changelog" id="opt-changelog">Chargement…</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="opt-toast" id="opt-toast"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

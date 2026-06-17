@@ -1,0 +1,470 @@
+﻿# Artis Redesign — CLAUDE.md
+
+Docs du repo : `ERROR.md` (erreurs à ne plus refaire) · `AUDIT.md` (perf/sécu + plan d'optimisation) · `README.md` (public).
+
+## 🛑 VÉRIFIER `ERROR.md` AVANT TOUTE MODIF
+
+**RÈGLE PERMANENTE :** Avant chaque modification, lire `ERROR.md` (racine projet) pour ne pas répéter une erreur déjà signalée. Quand l'utilisateur signale une erreur, l'ajouter à `ERROR.md` immédiatement.
+
+## ⚡ RÈGLES D'OR PERF (détail + plan dans `AUDIT.md` §C)
+
+À respecter dans **tout nouveau code** :
+1. Jamais `querySelectorAll('*')` → cibler `[style]`, classe ou id précis.
+2. Observer = batch rAF + `disconnect()` pendant nos écritures + portée minimale ; one-shot → préférer un événement (`focusin`, `load`…).
+3. Animation = pause `document.hidden` + fps plafonné + couches statiques pré-rendues.
+4. CSS nouveau = scopé (`html.artis-page-*` ou conteneur) ; `!important` seulement contre style inline/`!important` Artis ; aucun nouveau `backdrop-filter` / sélecteur universel / `[style*=]`.
+5. Donnée → Gemini = budget chars chiffré + URLs sanitizées + respect du toggle « Partage pages ».
+6. Pas de `setTimeout` en rafale pour attendre un élément (max 2 re-passes commentées).
+7. Mesurer (DevTools Performance, page planning) avant/après toute optimisation.
+
+## ⚙️ MAINTENANCE AUTO DE CE FICHIER
+
+**RÈGLE PERMANENTE — à appliquer à chaque session sans qu'on le redemande :**
+Dès qu'un nouvel élément est traité, tenir ce CLAUDE.md à jour automatiquement :
+- **Nouvelle URL/page** rencontrée → l'ajouter à la table « LIENS / PAGES UTILES » avec description + ce qui y a été corrigé.
+- **Nouveau mot-clé utilisateur** → l'ajouter au « LEXIQUE ».
+- **Nouvelle classe/sélecteur clé** découverte (ex: `#thumbnail`, `.bg-blue`) → lexique + pièges.
+- **Nouveau piège/comportement** → section « Pièges connus ».
+- Convertir dates relatives en absolues. Pas de doublons : mettre à jour la ligne existante plutôt que dupliquer.
+- **À chaque patch/modif visuelle** : incrémenter `ARTIS_VERSION` (`app-content.js`) + `manifest.json version` (synchros) ET ajouter une entrée en tête de **`CHANGELOG.md`** (racine repo — le journal n'est plus dans le JS depuis v1.9.48). Le bouton Version sidebar `#artis-version-btn` ouvre le repo GitHub.
+- **Versioning sémantique (depuis v2.0.0)** : `MAJEUR.MINEUR.PATCH` — petite modif/fix = patch (`2.0.1`), modif moyenne / nouvelle fonctionnalité = mineur (`2.1.0`), grosse refonte / rupture = majeur (`3.0.0`). Release GitHub taguée `vX.Y.Z` pour les versions marquantes.
+
+---
+
+## Contexte projet
+
+Extension Chrome/Edge qui applique un thème dark glassmorphism sur Artis.net (ERP métier).
+Stack cible : HTML Bootstrap 5 + jQuery (Metronic theme), pas de framework moderne.
+
+**Repo GitHub :** https://github.com/SimplementJohn/Artis-Redesign
+
+---
+
+## LIENS / PAGES UTILES
+
+Base : `https://artis.digithall.org/ArtisWebDigitInvest/`
+(params communs : `cKey`, `cStatus`, `session`, `typeLicence=BM`)
+
+| Page | URL (relative à la base) | Description | Traité |
+|------|--------------------------|-------------|--------|
+| Login SSO Bureau Mobile | `composants/login/sso/BM.action` | Page de connexion SSO. Erreur possible « accès simultané ». | Glassmorphism dark, canvas animé, bouton fluide, password toggle, logo JusteJohn haut-gauche (watermark bas-droite retiré v1.9.16) |
+| Login déconnecté | `composants/login/sso/loggedOut.action?typeLicence=BM` | Page après logout. | Même thème login |
+| Accueil / Visualiser entrée | `composants/commun/accueil/entreeVisualiser.action` | Page d'accueil (favoris, carte profil). Body flag JS `html.artis-page-entree`. | Bande vide aside-secondary masquée ; carte profil `#thumbnail` re-thémée ; tooltips z-index relevé |
+| Planning | `composants/ccPlanningV2/...` (page `body.page-ccPlanningV2`) | Planning emploi du temps. Blocs `.planning-event`. | Grille dark, blocs harmonisés + hover zoom |
+| Clients et Problèmes (DIT) | `composants/services/ccPlanningV2/entreeVisualiser.action` | Liste DIT + planning, suivi `startDitMonitor()` (autoreload 60 s + notifs). Matche la regex planning (`ccPlanningV2`) mais PAS le tag accueil. | Flyout transparent corrigé v1.9.57 (ne reçoit plus `artis-page-entree`) ; blocs clairs préservés en thème clair |
+| Workflow Manager | `composants/workflow/ccWorkflowManager/submit.action` | Tâches/workflow, gros tableaux. | Tables dark, boutons toolbar dark |
+| Mon compte | `composants/commun/navigation/redirect_ccMonCompte.action` | Profil utilisateur (lien depuis carte `#thumbnail`). | — |
+| Saisie CRIT / compte rendu | `composants/services/ccCrit/entreeAjouter.action` | Saisie compte rendu intervention. Éditeur TinyMCE inline `#ita_messclt` (« Commentaire pour le client »). Bloc détail DIT `#s_detail_dit > .card-body` (Client/Site/Demandeur/dates/Détail). | Bouton Reformuler (Gilles) DANS la toolbar TinyMCE + lit le contexte DIT (v1.9.45) ; toolbar dark intégrée au bandeau (v1.9.44) |
+| Aide en ligne | `https://portail.artis.fr/docs/5.0.5/index.html` | Doc externe Artis (nouvelle fenêtre). | — |
+
+---
+
+## LEXIQUE UTILISATEUR → ÉLÉMENTS RÉELS
+
+L'utilisateur décrit les éléments en langage courant + donne souvent un **XPath complet**
+(`/html/body/form/div[12]/...`). Traduction de ses mots-clé :
+
+| Ce que dit l'utilisateur | Élément réel | Sélecteur CSS |
+|--------------------------|--------------|---------------|
+| « bandeau de gauche » / « menu de gauche » (icônes) | Sidebar verticale icônes | `.aside-primary` / `.bg-artis-default-color` |
+| « le menu où il y a le bouton theme » | Zone icônes nav sidebar | `#kt_aside_nav` (= `.aside-primary > div:nth-child(3)`) |
+| « bouton theme » / « lune » / « soleil » | Toggle dark/light injecté | `#artis-theme-toggle` (cloné depuis `.aside-item-btn`) |
+| « bouton menu » (grille, comme Gilles) | Bouton injecté ouvrant le POPUP menu au survol | `#artis-menu-btn` (1re icône nav) → pose `html.artis-menu-open` ; ouvre `#artis-menu-popup` (body-level, fixed 330px) qui contient le `#kt_aside_workspace` natif DÉPLACÉ (v1.9.58) — `.aside-secondary` = coquille vide |
+| « volet déroulant » / « volet avec la barre de recherche » | Panel flyout menu | `.aside-secondary` (overlay absolu, anchored via `--artis-primary-w`) |
+| « barre de recherche » (Ctrl+K) | Bouton recherche globale | `.global-search-button-shortcut` |
+| « menus Services / Biens / Logistique » | Items menu nav | `.menu-item` > `.menu-link` > `.menu-title` ; sous-menus `.menu-sub-accordion` = **popup flottant au survol** (`position:absolute; left:100%`, v1.9.58 — plus d'accordéon, zéro décalage) |
+| « blocs de RDV » / « blocs emploi du temps » / « blocs de dit » | Événements planning colorés | `.planning-event` > `.panel-planning` (couleur inline par nature/type) |
+| « label / badge type » sur un bloc | Étiquette nature | `.label.label-nature` |
+| « le tableau » / « tableau vide » | Grilles de données | `table` / `.dataTable` / `.array-content table` (empty = `.dataTables_empty`) |
+| « le planning » / « grille » | Calendrier planning | `#planning-container`, `div.grid`, `table.table-grid` |
+| « page de chargement » | Overlay loading | `.divChargement` + loader custom `.artis-loader` injecté |
+| « page de login » / « SSO » | Login bureau mobile | `body.login-page`, `#loginForm`, message SSO « accès simultané » |
+| « il y a du blanc » | Fond blanc/gris résiduel Artis | strip via `stripWhiteBg()` + CSS `[style*="background..."]` |
+| « bleu pas violet » | Bleu Artis `#00AEEF/#0084BD` à remplacer | `stripArtisBlueBg()` → violet `#6366f1` |
+| « carte profil » / « ma pp » / « bloc bleu avec photo » | Widget profil accueil | `#thumbnail.bg-blue` (`.bg-blue`=`#03a9f4`), avatar `.photo-content`, glow derrière via `.thumb.frozen-dreams-gradient` |
+| « bouton rond rose » (profil/aide/logout) | Actions carte profil | `#thumbnail .btn.bg-pink-400` → recoloré violet |
+| « sous-menu pour changer le nombre de jours » / « sélecteur de semaine » (en haut EDT) | Date range picker (popup calendrier + raccourcis) | `.daterangepicker` (`.ranges li`, `.drp-calendar`, `table.table-condensed td.in-range/.active`, `.drp-buttons`) — thémé dark |
+| « les 3 boutons » (login) | Rangée SSO / Entrer / À propos | `.row.form-actions` > `.col.btn-action-login` > `.btn-group` (`#b_sso`, `#b_Entrer`, `#aProposModalLoginLink`) — checkbox dans un `.col` séparé, rangée passée en wrap pleine largeur (v1.9.42) |
+| « la preview pour mettre en gras » / barre gras/italique sur le compte rendu | Toolbar inline TinyMCE 6.8 (flottante, ancrée au-dessus de l'éditeur, body-level) | `.tox.tox-tinymce-inline` > `.tox-editor-header` ; boutons `.tox-tbtn` ; popups `.tox-pop/.tox-menu/.tox-collection` (dans `.tox-tinymce-aux`) ; éditeur = `.editor-artis-inline#ita_messclt` (page entreeAjouter ccCrit) — thémée dark solide v1.9.44 ; bouton `#artis-reformuler-btn` monté dedans (`.tox-toolbar__primary`, v1.9.45) |
+| « bloc détail de la demande » / contexte DIT (Client, Site, Demandeur, Date, Détail) | Carte récap DIT en haut de la saisie CR | `#s_detail_dit > .card-body` — `.form-group` (`label` + `.text-value`), lu par `getDitContext()` pour le bouton Reformuler |
+| « ma page d'accueil » (pop-up) | Modal widgets grid-stack (Favoris, profil, checklist, logo) | `#my-home-page` > `.modal-body.modal-max-height` (plafonnée 75vh → pleine hauteur v1.9.47) ; grille `#widget_container_modal.grid-stack`, widgets `.grid-stack-item` |
+| « bandeau titre intervention » (titre + badges TOP 30/INFOGERANCE + onglets Dit/Compte-rendu) | Header sticky des pages intervention | `.page-data-header.sticky-top` > `.page-header.page-header-default` > `.page-header-content` ; badges `.badge.bg-green/.bg-indigo` — fond opaque forcé v1.9.50 |
+
+### Notes comportement utilisateur
+- Donne souvent **XPath** au lieu de classe → utiliser pour localiser, mais cibler par **classe/id stable** dans le CSS (XPath `div[12]` = index fragile).
+- « collé aux autres boutons » = même structure DOM/espacement que les éléments natifs Artis (cloner l'existant, pas recréer).
+- « éclaircir le fond » = monter luminosité des vars `--a-bg/--a-s1/--a-s2` (+ canvas gradient + sidebar en parallèle).
+- « animation fluide » = transitions `cubic-bezier(0.22,1,0.36,1)` ~0.3-0.45s, stagger sur listes.
+- Theme clair toggle : classe `html.artis-light` (persisté `localStorage['artis-theme']`).
+
+### Menus flottants body-level
+- Artis ajoute des dropdowns/popovers en **fin de `<body>`** (`body > div[7]`, etc.) hors du conteneur app.
+- Leur **texte est noir** (CSS Artis) → invisible sur dark. Forcer `color` clair sur `.dropdown-menu a/li/span`, `.popover *`, `.ui-menu *`, `ul[role="menu"] a`.
+- Ces menus n'ont pas toujours `.dropdown-menu` → couvrir aussi `.popover`, `.tippy-box`, `.ui-menu`, `[role="listbox/menu"]`.
+
+### Pièges connus
+- `.aside-secondary` : depuis v1.9.58 c'est une **coquille vide** — son contenu `#kt_aside_workspace` est déplacé dans le popup body-level `#artis-menu-popup` (ouvert au survol de `#artis-menu-btn` via `html.artis-menu-open`, JS app-content). Le volet reste glissé hors écran (`translateX(-100%)`), display intact (règle ERROR.md). Historique : flottant absolute/fixed v1.9.52, ouverture `.aside:hover` retirée v1.9.58.
+- Tables vides → l'élément `<table>` doit avoir fond dark explicite (cellules transparentes laissent voir wrapper blanc).
+- Blocs planning : couleurs Artis = **données métier** (nature/type) → ne pas aplatir, juste harmoniser (saturation/glow/voile).
+- Metronic toggle les sous-menus via classes `.show/.here/.hover` → depuis v1.9.58 ces classes sont sans effet visuel : ouverture pilotée par `:hover` (popup `opacity/visibility`, jamais `display`). `.aside-secondary` est en `overflow:visible` pour laisser sortir les popups.
+- Polices locales : tout `.woff2` chargé par la page doit être dans `web_accessible_resources` du manifest (`fonts/*.woff2`), sinon bloqué.
+- Permission `tabs` retirée (v1.9.43) : `tabs.query({url})` marche via la host permission `artis.digithall.org` ; `reload/update` n'ont jamais eu besoin de permission.
+- MutationObserver (app-content) : traitement batché par frame + `disconnect()` pendant nos écritures — ne pas remettre de strip synchrone dans le callback (boucle de rétroaction).
+- Éléments `position: sticky` (ex `.page-data-header.sticky-top`) : le strip global de fonds les rend **transparents** → contenu visible derrière au scroll. Tout sticky doit recevoir un fond dark **opaque** explicite.
+- Toolbar TinyMCE inline : créée **au premier focus** de l'éditeur (pas au load) → tout bouton injecté dedans n'apparaît qu'après clic dans la zone de texte. Sur un bouton custom dans la barre : `mousedown → preventDefault()` obligatoire, sinon blur de l'éditeur = TinyMCE cache la barre avant le `click`.
+- Thème clair (v1.9.57) : **zéro recolor** — canvas, nuclear CSS, strips (`initialSweep`, observer) ne tournent QU'EN sombre. La classe `artis-light` est posée en **tout début d'init** (`applyThemePreference()`) pour que `isLightTheme()` soit fiable partout. Toggle theme sidebar = `location.reload()` (un switch live laisse un état mixte). Boutons injectés sidebar = blanc en clair.
+- Anti-FOUC (v2.2.1) : `theme-init.js` (`document_start`) pose `html.artis-light` AVANT le paint, lu d'un MIROIR `localStorage` SYNC (`artis-theme-mode`/`artis-enabled`). `chrome.storage.local` est async = trop tard. **Tout réglage de thème écrit dans chrome.storage DOIT être mirroité dans localStorage par `app-content.js`** (boot + `onChanged`) sinon le prochain `document_start` lira une valeur périmée. Sombre = défaut CSS (`:not(.artis-light)`) → pas de miroir nécessaire pour le dark.
+- Master switch (v2.2.1) : `boot()` est appelé INCONDITIONNELLEMENT et gère lui-même le cas `artis_enabled===false` (`disableThemeSheets`). Ne jamais re-court-circuiter boot() avant — sinon désactivé = thème toujours appliqué (cf ERROR.md).
+- `tagPage()` : regex par CHEMIN complet (`accueil/entreeVisualiser`), jamais par nom d'action seul — `entreeVisualiser.action` existe dans `commun/accueil` ET `services/ccPlanningV2`.
+- **Mode limité (`html.artis-limited`, v2.2.2)** : thème clair + sidebar violet uniquement. `artis-light` ET `artis-limited` posés tous les deux par `theme-init.js` et `applyThemePreference()`. Les strips/canvas/nuclear CSS ne tournent pas (car `isLightTheme()=true`). CSS scopé `html.artis-limited .aside-primary`. Bouton sidebar toggle → bascule vers `dark` (pas `light`) pour ne pas perdre le mode.
+- **TinyMCE toolbar disparition (sources connues v2.2.4)** : (1) `display:flex !important` sur `.tox-tinymce-inline` résiste à la recréation DOM par TinyMCE ; (2) `editor.dataset.gilesBtn='1'` posé avant que TinyMCE soit prêt → retries +1200/+3000ms sans effet (flag déjà là) → `toolbarObs` doit inclure retry délayé si `mountInToolbar()` échoue ; (3) `focusin` sur `#ita_messclt` peut ne pas bubble si TinyMCE utilise un iframe.
+- **Gilles provider label** : `resp.provider` + `resp.model` renvoyés par `askLLM` via `Object.assign(r, { provider })`. Affiché dans `addBubble(role, text, store, meta)` — label AVANT la bulle (`.giles-bubble-meta`). Modèles locaux (DAI/Ollama) = directive langue forcée EN TÊTE ET EN PIED du system prompt.
+- **DAI defaults (v2.2.3+)** : URL `http://172.28.1.232:11434`, modèle `codellama:7b`, provider DAI en 1er, Gemini en 2e. `chrome.runtime.onInstalled` (reason=install) écrit ces défauts si absents du storage. `setKeyStatus('dai', true)` toujours — URL défaut disponible sans save explicite.
+
+---
+
+## Structure HTML exacte (extraite des sources)
+
+### Layout global (toutes pages internes)
+
+```
+body.page-ccPlanningV2  (ou autre page)
+  └── div.page-container.container
+        └── div.page-content#page-content
+              └── div.aside.aside-extended
+                    ├── div.aside-primary.d-flex.bg-artis-default-color  ← SIDEBAR GAUCHE
+                    └── div.aside-secondary.d-flex.flex-row-fluid         ← PANEL + CONTENU
+                          └── div.aside-workspace#kt_aside_workspace
+                                ├── div.global-search-button-container    ← BARRE RECHERCHE
+                                └── div.tab-content
+                                      └── div.tab-pane#kt_aside_nav_tab_*
+```
+
+### Sidebar gauche (aside-primary)
+
+```html
+<div class="aside-primary d-flex flex-column align-items-lg-center flex-row-auto bg-artis-default-color" style="height: 100vh;">
+  <div class="aside-logo" id="kt_aside_logo">        ← Logo Artis SVG
+  <div class="aside-logo" id="kt_aside_user">        ← Avatar utilisateur + menu dropdown
+  <div class="aside-nav nav" id="kt_aside_nav">      ← Icônes de navigation (tabs)
+    <span class="aside-item-btn">
+      <a class="nav-link btn btn-icon active">        ← Bouton icône actif
+      <a class="nav-link btn btn-icon">               ← Bouton icône inactif
+    <span id="labelNbFavoris" class="badge bg-secondary rounded-circle">4</span>
+```
+
+**Classes clés sidebar :**
+- `.aside-primary` — conteneur principal sidebar (fond bleu Artis d'origine)
+- `.bg-artis-default-color` — classe Bootstrap custom Artis = couleur bleue par défaut
+- `.aside-item-btn` — wrapper de chaque icône
+- `.nav-link.btn.btn-icon` — bouton icône (avec `.active` si sélectionné)
+- `.aside-logo` — zone logo en haut
+- `.aside-nav` — zone des icônes nav
+
+### Panel secondaire (aside-secondary)
+
+```html
+<div class="aside-secondary d-flex flex-row-fluid">
+  <div class="aside-workspace" id="kt_aside_workspace">
+    <div class="global-search-button-container">
+      <a class="global-search-button-shortcut">  ← Barre recherche Ctrl+K
+    <div class="tab-content">
+      <div class="tab-pane fade active show" id="kt_aside_nav_tab_ARTIS_NET">
+        <div class="menu_ARTIS_NET menu menu-column">   ← Menu navigation
+          <div class="menu-item menu-accordion">
+            <span class="menu-link">
+              <div class="menu-icon"><span class="svg-icon">
+              <span class="menu-title">Services</span>
+              <span class="menu-arrow">
+            <div class="menu-sub menu-sub-accordion">
+              <div class="menu-item">
+                <a class="menu-link">
+                  <span class="menu-title">
+```
+
+**Classes clés panel secondaire :**
+- `.aside-secondary` — panel blanc par défaut → doit être dark
+- `.aside-workspace` — workspace intérieur
+- `.global-search-button-container` — barre recherche
+- `.global-search-button-shortcut` — lien recherche
+- `.menu-column` — menu vertical
+- `.menu-item` — item de menu
+- `.menu-link` — lien cliquable
+- `.menu-title` — texte du lien
+- `.menu-icon` — icône SVG à gauche
+- `.menu-arrow` — flèche accordéon
+- `.menu-sub.menu-sub-accordion` — sous-menu dépliable
+- `.menu-accordion` — item avec sous-menu
+
+### Navbar top
+
+```html
+<div class="navbar">
+  <img class="navbar-brand">
+  <div id="user-menu-defaut">
+```
+
+### Planning spécifique
+
+```html
+<div id="planning-container">
+  <div id="calendarContent">           ← border-top: 1px solid #A2BBDD
+  <div class="grid">                   ← background: #FFFFFF ← SOURCE DU BLANC
+  <table class="table-horaires">       ← background: #E8EEF7
+  <table class="table-grid">
+    tbody tr td                        ← border: dotted 1px #DDDDDD
+  <div class="off-working-plage">      ← background: #eee
+  <span class="tech-group-name">       ← color: #446688
+```
+
+**Classes planning clés :**
+- `div.grid` — grille calendrier → `background: #FFFFFF` inline à overrider
+- `.table-horaires` — tableau des horaires
+- `.table-grid` — grille principale
+- `.off-working-plage` — plage hors-travail (gris)
+- `.tech-group-name` — nom technicien
+- `#planning-container` — container principal
+- `#calendarContent` — zone calendrier
+
+### Context menus (clic droit planning)
+
+```html
+<div id="contextMenuAPlanifier" class="planning-context-menu dropdown-menu bg-grey-800">
+  <div class="img-background">
+  <span class="dropdown-header">
+  <a class="dropdown-item">
+```
+
+**Note :** Artis utilise `.bg-grey-800` sur ces menus — déjà dark, garder.
+
+### Données de formulaire / grille tâches
+
+```html
+<div class="array-content">
+  <table>
+    <thead><tr><th>  ← color: #B5B5C3 (déjà muted)
+    <tbody><tr><td>  ← background blanc à overrider
+```
+
+### Breadcrumb
+
+```html
+<div class="breadcrumb-line">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+    <li class="breadcrumb-item active">
+```
+
+### Chargement
+
+```html
+<div id="chargement" class="divChargement">
+<div id="chargement2" class="divChargement divChargementBloquant">
+  <div class="chgtContent">
+    <div class="box-rotate-loader">
+      <div class="box-rotate-box">
+    <div class="chgtText">
+```
+
+### Page login
+
+```html
+<body class="login-page">
+  <div class="login-background" style="background-image: url(...)">
+    <div class="container">
+      <div class="login-wrapper d-flex flex-column">
+        <img class="login-img">
+        <form id="loginForm">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="card-title">Bureau mobile</h5>
+            <div class="card-body">
+              <div class="has-feedback has-feedback-left">
+                <div class="form-control-feedback"><i class="mdi mdi-account">
+                <input class="form-control">
+            <div class="card-footer">
+              <a id="mdpOublieModalLoginLink">
+```
+
+---
+
+## Variables CSS Artis
+
+```css
+/* Artis définit ces variables dans son thème */
+--artis-default-color   /* bleu Artis = #00AEEF ou similaire */
+--bs-primary            /* Bootstrap primary */
+
+/* Classes utilitaires Artis */
+.bg-artis-default-color   /* fond bleu sidebar */
+.text-artis-default-color /* texte bleu Artis */
+.svg-icon-artis           /* icône couleur Artis */
+.menu-hover-icon-artis    /* hover icône Artis */
+.menu-state-icon-artis    /* état icône Artis */
+```
+
+---
+
+## Thème à respecter — Design System
+
+### Palette dark glassmorphism
+
+| Token | Valeur | Usage |
+|-------|--------|-------|
+| `--artis-bg` | `#080818` | Fond page (canvas) |
+| `--artis-surface` | `#0f0f28` | Surfaces cards |
+| `--artis-surface2` | `#13132e` | Surfaces secondaires |
+| `--artis-border` | `rgba(99,102,241,0.2)` | Bordures |
+| `--artis-primary` | `#6366f1` | Indigo (remplace bleu Artis) |
+| `--artis-primary2` | `#818cf8` | Indigo clair (hover, actif) |
+| `--artis-text` | `#e2e8f0` | Texte principal |
+| `--artis-muted` | `#94a3b8` | Texte secondaire |
+| `--artis-accent` | `#10b981` | Vert success |
+
+### Sidebar `.aside-primary` / `.bg-artis-default-color`
+
+```css
+background: linear-gradient(180deg, #0d0d26 0%, #0a0a20 100%);
+border-right: 1px solid rgba(99,102,241,0.25);
+box-shadow: 2px 0 20px rgba(0,0,0,0.5), inset -1px 0 0 rgba(99,102,241,0.15);
+```
+
+- Icônes inactives : `rgba(148,163,184,0.7)`
+- Icônes hover : `#a5b4fc` + `background: rgba(99,102,241,0.12)` + `border-radius: 8px`
+- Icône active : `#818cf8` + `background: rgba(99,102,241,0.2)` + `border-radius: 8px`
+- Badges : `background: #6366f1` + `box-shadow: 0 2px 6px rgba(99,102,241,0.4)`
+
+### Panel secondaire `.aside-secondary`
+
+```css
+background: #0e0e27;
+border-right: 1px solid rgba(99,102,241,0.2);
+box-shadow: 4px 0 32px rgba(0,0,0,0.6);
+```
+
+- Liens menu : `rgba(203,213,225,0.85)` → hover `#818cf8` + `background: rgba(99,102,241,0.15)`
+- Section labels : `#94a3b8`, uppercase, 0.68rem, letter-spacing 0.1em
+
+### Cards / panels
+
+```css
+background: rgba(13,13,38,0.88);
+backdrop-filter: blur(20px) saturate(160%);
+border: 1px solid rgba(99,102,241,0.18);
+border-radius: 14px;
+box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+```
+
+### Inputs focus
+
+```css
+border-color: rgba(99,102,241,0.55);
+box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+```
+
+### Boutons
+
+- Primary/Info : `linear-gradient(135deg, #6366f1, #818cf8)` + `box-shadow: 0 2px 10px rgba(99,102,241,0.3)`
+- Success : `linear-gradient(135deg, #10b981, #34d399)`
+
+### Planning grid spécifique
+
+```css
+div.grid { background: rgba(10,10,28,0.9) !important; }  /* était #FFFFFF */
+.table-horaires { background: rgba(99,102,241,0.08) !important; }
+.off-working-plage { background: rgba(99,102,241,0.06) !important; }
+.tech-group-name { color: #818cf8 !important; border-bottom-color: rgba(99,102,241,0.3) !important; }
+#calendarContent { border-top-color: rgba(99,102,241,0.2) !important; }
+table.table-grid tbody tr td { border-color: rgba(99,102,241,0.1) !important; }
+```
+
+---
+
+## Typo
+
+- **Font** : `Plus Jakarta Sans` (bundlée localement, `fonts/`) — friendly, modern, SaaS
+- Body : 0.875rem–1rem, line-height 1.5
+- Labels section : 0.68rem, uppercase, font-weight 700, letter-spacing 0.1em
+- Tabs actifs : font-weight 600
+
+---
+
+## Règles CSS prioritaires
+
+### JAMAIS laisser de blanc
+
+Toute `div`, `td`, `tr`, `section` part en `background: transparent` par défaut.
+Seuls les composants explicitement listés reçoivent un fond dark.
+
+### Inline styles blancs
+
+Artis injecte souvent `style="background:#fff"` ou `style="background:white"` via JS.
+Le `MutationObserver` dans `app-content.js` strip ces styles au runtime.
+La règle CSS `[style*="background: white"]` couvre les cas statiques.
+
+### `.bg-grey-800` (context menus planning)
+
+Ne pas overrider — Artis l'utilise déjà comme fond sombre sur les menus contextuels. Laisser tel quel ou améliorer légèrement.
+
+### Couleur Artis bleue → Violet
+
+Partout où Artis utilise son bleu (`#00AEEF`, `bg-artis-default-color`, `text-artis-default-color`), remplacer par `#6366f1` / `#818cf8`.
+
+---
+
+## Fichiers extension
+
+| Fichier | Rôle |
+|---------|------|
+| `extension/manifest.json` | Manifest V3 — permissions minimales (`storage`, `notifications`), 2 hosts, background, popup |
+| `extension/content.js` | Login : canvas + animations + toggle password + master switch |
+| `extension/login-override.css` | Login : glassmorphism dark |
+| `extension/theme-init.js` | App `run_at:document_start` : pose `html.artis-light` AVANT le 1er paint depuis le miroir `localStorage` (`artis-theme-mode`/`artis-enabled`) → tue le FOUC noir→blanc. Si désactivé : `sheet.disabled` tôt |
+| `extension/app-content.js` | App : canvas + nuclear CSS + observer + toggle theme/version + Reformuler + suivi DIT + CHANGELOG + master switch + miroir localStorage thème |
+| `extension/app-override.css` | App : thème complet (~3000 lignes — scoper les nouvelles règles, voir règles perf) |
+| `extension/giles.js` | Gilles : UI pop-up IA (chat, mémoire 5, onglet Conversations, capture pages) |
+| `extension/giles.css` | Gilles : styles (glass, light mode, responsive) |
+| `extension/giles-bg.js` | Service worker : appels Gemini (fallback multi-modèles), clé, base de connaissance, notifications |
+| `extension/GILLES.md` | Préprompt système de Gilles — SPÉCIFIQUE Digithall, **gitignoré** ; prime sur le générique |
+| `extension/GILLES_REFORM.md` | Préprompt bouton Reformuler (CR) — SPÉCIFIQUE Digithall, **gitignoré** ; chargé via `systemPreset:'reform'` |
+| `extension/GILLES.example.md` + `GILLES_REFORM.example.md` | Modèles GÉNÉRIQUES publiés sur GitHub — fallback si les fichiers spécifiques absents |
+| `extension/artis.txt` + `knowledge/` + `knowledge-index.json` | Base de connaissance : seed + 93 fichiers doc, récupération ciblée par question via l'index |
+| `extension/apigemini.txt` | Clé API Gemini (gitignored, non web-accessible) — à EXCLURE de tout build distribué |
+| `extension/fonts/` | Polices locales (Plus Jakarta Sans, Space Grotesk, DM Sans — woff2) + `fonts.css` via manifest. Aucune requête Google Fonts |
+| `extension/popup.html/.css/.js` | Popup MINIMALE (v2.0.0) : thème (sombre/auto/clair) + bouton « Paramètres avancés » — tout le reste vit sur la page options |
+| `extension/options.html/.css/.js` | Page paramètres (onglet Chrome) : master switch, Gilles, partage pages, mémoire 5–30, clé API, modèle, notifs, intervalle DIT, export/import/reset, changelog — accessible (16px, focus, clavier) |
+| `SCREENSHOTS/` | Captures pour le README (login, accueil, planning dark/light, popup, paramètres) |
+| `sync-knowledge.ps1` | Re-copie `datatxt/*` → `extension/` (maj connaissance) |
+
+### Gilles — assistant IA
+
+- **Providers & ordre (v2.2.3+)** : DAI (Ollama, `http://172.28.1.232:11434`, `codellama:7b`) → Gemini (`gemini-2.5-flash-lite`) → OpenAI → Claude. Chaîne configurable via drag-and-drop page options (`giles_fallback_order` + `giles_fallback_enabled`). Fallback auto sur QUOTA/OVERLOAD/KEY_INVALID. Appelés depuis le **service worker** (`giles-bg.js`) → évite CORS/CSP de la page.
+- **Clé API** : `chrome.storage.local['giles_api_key']` (popup) sinon parsée depuis `apigemini.txt`.
+- **Connaissance** : `artis.txt` (seed) + fichiers `knowledge/` sélectionnés par scoring de la question via `knowledge-index.json` — budget 50k chars, le tout en `systemInstruction` avec le préprompt.
+- **Pages visitées** : capture `innerText` live mémoïsée (TTL 4s), sessionStorage, budget 40k chars, URLs sanitizées (`session/cKey/cStatus=***`). Toggle popup « Partage pages ».
+- **Mémoire active** : réglable 5–30 messages (défaut 15, slider page paramètres, clé `giles_mem_limit`) ; vidée à chaque rechargement complet (sessionStorage).
+- **Conversations** : `localStorage['giles_conversations']` (PC uniquement), purge TTL 30 j. Onglet : voir / supprimer / tout vider.
+- **Slider on/off** : popup écrit `artis_enabled` / `giles_enabled` ; bascule thème = `location.reload()`.
+- **Reformuler (CR)** : `app-content.js` envoie `GILLES_ASK` avec `systemPreset:'reform'` via port long-lived `gilles-ask` → giles-bg charge `GILLES_REFORM.md` ; contexte DIT lu par `getDitContext()`.
+
+### ⚠️ Lecture disque
+
+Extension installée = **ne lit PAS un dossier disque arbitraire** (sandbox). Seuls les fichiers **bundlés dans `extension/`** sont lisibles (`getURL`+`fetch`). La doc Artis doit être copiée dans `extension/` via `sync-knowledge.ps1`. Lecture live d'un dossier choisi = File System Access API (non implémenté).
+
+## URL ciblées
+
+```
+Login  : *://artis.digithall.org/*/composants/login/*
+App    : *://artis.digithall.org/ArtisWebDigitInvest/*  (hors login)
+```
+
+---
+
+## Pages sauvegardées localement
+
+- `Artis.net - Bureau mobile.html` + `_files/` — page login
+- `Artis.net - Planning.html` + `_files/` — page planning (connecté)
+
+CSS clés à lire pour comprendre le thème original :
+- `_files/composants.css` — CSS global Artis
+- `_files/planning.css` — CSS spécifique planning
