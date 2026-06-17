@@ -248,6 +248,37 @@ html.artis-page-entree .aside-secondary .tab-pane:empty {
   transition: none !important;
 }
 
+/* Contenu principal : toujours flex:1 quelle que soit l'état aside Metronic.
+   Metronic change margin-left/padding-left du wrapper via data-kt-aside-minimize
+   ou classes aside-enabled → le contenu laisse un grand espace vide.
+   On neutralise ces ajustements dynamiques pour coller au layout 70px. */
+.aside.aside-extended ~ *,
+.aside.aside-extended + * {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  transition: none !important;
+}
+/* Neutralise les sélecteurs Metronic basés sur l'état aside du body */
+body[data-kt-aside-minimize],
+body[data-kt-aside-minimize="on"],
+body[class*="aside-enabled"],
+body[class*="aside-on"] {
+  --kt-aside-width: 0px !important;
+}
+[data-kt-aside-minimize] ~ .wrapper,
+[data-kt-aside-minimize] ~ #kt_content,
+body[data-kt-aside-minimize] .wrapper,
+body[data-kt-aside-minimize] #kt_content,
+body[data-kt-aside-minimize] [id*="kt_content"],
+body[data-kt-aside-minimize] [class*="content-wrapper"],
+body[class*="aside"] .wrapper,
+body[class*="aside"] #kt_content {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
 /* ── Search bar (Ctrl+K) — structure/hover (couleurs §3) ──── */
 .global-search-button-shortcut {
   border-radius: 10px !important;

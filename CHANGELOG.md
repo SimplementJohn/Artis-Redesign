@@ -3,6 +3,19 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.2.9 — 2026-06-17
+
+**Fix espace vide qui grandit/rétrécit entre sidebar et contenu :**
+- Metronic change `data-kt-aside-minimize` sur body ou des classes `aside-enabled/aside-on` selon l'état du toggle aside — ces attributs modifient `margin-left`/`padding-left` du wrapper principal → grand espace vide entre sidebar et contenu.
+- Fix : `aside.aside-extended ~ *` forcé `flex:1; margin-left:0; padding-left:0` + neutralisation des sélecteurs Metronic basés sur l'état aside (`body[data-kt-aside-minimize] .wrapper`, etc.).
+
+## 2.2.8 — 2026-06-17
+
+**Fix popup menu : debounce ouverture hover — plus de trou sur passage de souris :**
+- Passage rapide de souris sur `#artis-menu-btn` déclenchait `html.artis-menu-open` immédiatement → popup 330px overlay apparaissait = impression de grand trou dans l'interface.
+- Fix : debounce 280ms sur `mouseenter` du bouton menu — le popup ne s'ouvre que si le hover dure. Fermeture : grâce 300ms conservée pour traverser espace sidebar → popup.
+- Click sur bouton natif sidebar (`#kt_aside_nav`) → toujours `openImmediate()` sans délai.
+
 ## 2.2.7 — 2026-06-17
 
 **Fix audit — 9 corrections sécurité / bugs / perf :**
