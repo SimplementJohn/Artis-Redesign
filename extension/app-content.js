@@ -581,14 +581,59 @@
     /* Insérer JUSTE APRÈS le dernier bouton — collé au groupe, pas en bas */
     refWrapper.insertAdjacentElement('afterend', wrapper);
 
-    /* Toggle handler — écrit le mode EXPLICITE dans chrome.storage ; le
-       listener storage recharge tous les onglets Artis avec l'overlay
-       anti-saccade (reload obligatoire : canvas/nuclear/strips = init only). */
-    btn.addEventListener('click', () => {
-      const toLight = !document.documentElement.classList.contains('artis-light');
-      /* limited → dark (ne rebascule pas vers light pour ne pas perdre le mode) */
-      const nextMode = toLight ? 'light' : (CFG.themeMode === 'limited' ? 'dark' : 'dark');
-      chrome.storage.local.set({ artis_theme_mode: nextMode });
+    /* Popup thème — 3 options : sombre / clair / limité */
+    const THEME_POPUP_ID = 'artis-theme-popup';
+
+    function removeThemePopup() {
+      const existing = document.getElementById(THEME_POPUP_ID);
+      if (existing) existing.remove();
+      document.removeEventListener('click', onDocClickTheme, true);
+    }
+
+    function onDocClickTheme(e) {
+      const popup = document.getElementById(THEME_POPUP_ID);
+      if (popup && !popup.contains(e.target) && e.target !== btn) removeThemePopup();
+    }
+
+    function showThemePopup() {
+      removeThemePopup();
+      const current = CFG.themeMode || 'dark';
+      const options = [
+        { mode: 'dark',    label: 'Sombre',  icon: MOON_SVG },
+        { mode: 'light',   label: 'Clair',   icon: SUN_SVG },
+        { mode: 'limited', label: 'Limité',  icon: `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36-6.36-.71.71M6.34 17.66l-.7.7M17.66 17.66l-.7-.7M6.34 6.34l-.7-.71M12 8a4 4 0 000 8"/></svg>` },
+      ];
+      const popup = document.createElement('div');
+      popup.id = THEME_POPUP_ID;
+      popup.setAttribute('role', 'menu');
+
+      options.forEach(opt => {
+        const item = document.createElement('button');
+        item.className = 'artis-theme-option' + (opt.mode === current ? ' artis-theme-option--active' : '');
+        item.setAttribute('type', 'button');
+        item.setAttribute('role', 'menuitem');
+        item.innerHTML = opt.icon + '<span>' + opt.label + '</span>';
+        item.addEventListener('click', () => {
+          chrome.storage.local.set({ artis_theme_mode: opt.mode });
+          removeThemePopup();
+        });
+        popup.appendChild(item);
+      });
+
+      document.body.appendChild(popup);
+
+      /* Positionner à droite du bouton */
+      const rect = btn.getBoundingClientRect();
+      popup.style.top = rect.top + 'px';
+      popup.style.left = (rect.right + 8) + 'px';
+
+      setTimeout(() => document.addEventListener('click', onDocClickTheme, true), 0);
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (document.getElementById(THEME_POPUP_ID)) { removeThemePopup(); return; }
+      showThemePopup();
     });
 
     /* ── Bouton VERSION (sous le toggle theme) — masquable via popup ── */
@@ -596,7 +641,7 @@
   }
 
   /* ── 6b1. Bouton version — journal des versions : CHANGELOG.md (racine repo) ── */
-  const ARTIS_VERSION = '2.2.5';
+  const ARTIS_VERSION = '2.2.7';
   const GITHUB_REPO = 'https://github.com/SimplementJohn/Artis-Redesign';
   const VERSION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.39 1.24-3.23-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.23 0 4.63-2.81 5.65-5.49 5.95.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0024 12.5C24 5.87 18.63.5 12 .5z"/></svg>`;
 
@@ -704,6 +749,19 @@
     btn.addEventListener('mouseleave', scheduleClose);
     popup.addEventListener('mouseenter', open);
     popup.addEventListener('mouseleave', scheduleClose);
+
+    /* Boutons natifs Artis (#kt_aside_nav) : click → ouvre popup
+       (le workspace est dans le popup depuis v1.9.58 — le tab change
+       mais le popup restait invisible sans ce handler) */
+    const nativeNav = document.getElementById('kt_aside_nav');
+    if (nativeNav) {
+      nativeNav.addEventListener('click', (e) => {
+        const navBtn = e.target.closest('.nav-link, a, button');
+        if (navBtn && navBtn.id !== 'artis-menu-btn' && navBtn.id !== 'artis-theme-toggle') {
+          open();
+        }
+      });
+    }
   }
 
   /* ── Stagger entrée sidebar — une seule timeline (natifs+injectés) ── */
@@ -901,7 +959,7 @@
      - notifie le navigateur pour chaque NOUVELLE DIT (Client + Problème). */
   const DIT_URL_RX  = /ccPlanningV2\/entreeVisualiser\.action/i;
   const DIT_SEEN_KEY = 'artis_dit_seen';
-  const DIT_RELOAD_MS = 60000;
+  let DIT_RELOAD_MS = 60000;
 
   function isDitPage() { return DIT_URL_RX.test(location.href); }
 
@@ -1052,7 +1110,6 @@
   function injectReformulerBtn() {
     const editor = document.querySelector('#ita_messclt');
     if (!editor || editor.dataset.gilesBtn) return;
-    editor.dataset.gilesBtn = '1';
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1064,6 +1121,80 @@
     btn.className = 'tox-tbtn';
     /* width:34px = ce que TinyMCE pose inline sur ses propres boutons */
     btn.style.cssText = 'width:34px;cursor:pointer;';
+
+    /* ── Popup aperçu avant remplacement ── */
+    function showReformPreview(html, providerLabel, targetEditor) {
+      const POPUP_ID = 'artis-reform-preview';
+      const existing = document.getElementById(POPUP_ID);
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = POPUP_ID + '-overlay';
+      overlay.className = 'artis-reform-overlay';
+
+      const popup = document.createElement('div');
+      popup.id = POPUP_ID;
+      popup.className = 'artis-reform-preview';
+      popup.setAttribute('role', 'dialog');
+      popup.setAttribute('aria-modal', 'true');
+      popup.setAttribute('aria-label', 'Aperçu du compte rendu');
+
+      const close = () => { overlay.remove(); };
+
+      popup.innerHTML = `
+        <div class="artis-reform-header">
+          <div>
+            <div class="artis-reform-gilles-label">GILLES</div>
+            <div class="artis-reform-title">Aperçu du compte rendu</div>
+          </div>
+          <button class="artis-reform-close" type="button" aria-label="Fermer">✕</button>
+        </div>
+        ${providerLabel ? `<div class="artis-reform-provider">Brouillon généré par ${providerLabel}. Les notes restent inchangées tant que vous ne validez pas.</div>` : ''}
+        <div class="artis-reform-body">${html}</div>
+        <div class="artis-reform-footer">
+          <button class="artis-reform-btn artis-reform-btn--secondary" id="artis-reform-copy" type="button">Copier</button>
+          <button class="artis-reform-btn artis-reform-btn--secondary" id="artis-reform-append" type="button">Ajouter à la suite</button>
+          <button class="artis-reform-btn artis-reform-btn--primary" id="artis-reform-replace" type="button">Remplacer le champ</button>
+        </div>
+      `;
+
+      overlay.appendChild(popup);
+      document.body.appendChild(overlay);
+
+      function applyToEditor(newHtml) {
+        targetEditor.innerHTML = newHtml;
+        targetEditor.dispatchEvent(new Event('input',  { bubbles: true }));
+        targetEditor.dispatchEvent(new Event('change', { bubbles: true }));
+        const hi = targetEditor.parentElement && targetEditor.parentElement.querySelector('input[type="hidden"][name="ita_messclt"]');
+        if (hi) hi.value = newHtml;
+      }
+
+      popup.querySelector('.artis-reform-close').addEventListener('click', close);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+      popup.querySelector('#artis-reform-copy').addEventListener('click', () => {
+        const plain = popup.querySelector('.artis-reform-body').innerText || '';
+        navigator.clipboard.writeText(plain).catch(() => {});
+        const b = popup.querySelector('#artis-reform-copy');
+        b.textContent = 'Copié !';
+        setTimeout(() => { b.textContent = 'Copier'; }, 2000);
+      });
+
+      popup.querySelector('#artis-reform-append').addEventListener('click', () => {
+        const existing = targetEditor.innerHTML || '';
+        const separator = existing.trim() ? '<br><br>' : '';
+        applyToEditor(existing + separator + html);
+        close();
+      });
+
+      popup.querySelector('#artis-reform-replace').addEventListener('click', () => {
+        applyToEditor(html);
+        close();
+      });
+
+      /* Focus trap basique */
+      setTimeout(() => popup.querySelector('#artis-reform-replace').focus(), 50);
+    }
 
     btn.addEventListener('click', () => {
       /* Lecture texte : 3 sources par ordre de fiabilité */
@@ -1105,15 +1236,9 @@
             return;
           }
           const html = crMdToHtml(resp.text);
-          editor.innerHTML = html;
-          editor.dispatchEvent(new Event('input',  { bubbles: true }));
-          editor.dispatchEvent(new Event('change', { bubbles: true }));
-          const hiddenInput = editor.parentElement && editor.parentElement.querySelector('input[type="hidden"][name="ita_messclt"]');
-          if (hiddenInput) hiddenInput.value = html;
-          btn.innerHTML = '✓';
-          btn.title = 'Reformulé !';
-          btn.style.color = '#34d399';
-          setTimeout(resetBtn, 3000);
+          const providerLabel = (resp.provider || '') + (resp.model ? ' · ' + resp.model : '');
+          resetBtn();
+          showReformPreview(html, providerLabel, editor);
         });
 
         port.onDisconnect.addListener(() => {
@@ -1148,6 +1273,7 @@
         group.appendChild(btn);
         toolbar.appendChild(group);
       }
+      editor.dataset.gilesBtn = '1';  /* flag posé seulement après montage réussi */
       return true;
     }
 
@@ -1342,7 +1468,9 @@
   function mirror(key, val) { try { localStorage.setItem(key, String(val)); } catch (e) {} }
 
   function boot() {
-    chrome.storage.local.get(['artis_enabled', 'artis_theme_mode', 'artis_dark', 'artis_version_btn'], s => {
+    chrome.storage.local.get(['artis_enabled', 'artis_theme_mode', 'artis_dark', 'artis_version_btn', 'dit_interval'], s => {
+      const rawInterval = parseInt(s && s.dit_interval, 10);
+      if (rawInterval >= 15 && rawInterval <= 600) DIT_RELOAD_MS = rawInterval * 1000;
       const enabled = !(s && s.artis_enabled === false);
       mirror('artis-enabled', enabled);
       if (!enabled) {

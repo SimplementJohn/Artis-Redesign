@@ -122,7 +122,7 @@ async function getKnowledgeFor(query) {
 const PROVIDER_MODELS_DEFAULT = {
   gemini: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'],
   openai: ['gpt-4.1-mini', 'gpt-4o-mini', 'gpt-4.1'],
-  claude: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'],
+  claude: ['claude-haiku-4-5', 'claude-sonnet-4-6'],
   dai:    [],
 };
 
@@ -321,7 +321,7 @@ async function callLLM(provider, model, key, systemText, messages) {
 
 /* ── Keep-alive SW ──────────────────────────────────────────── */
 let _keepAliveTimer = null;
-function swKeepAlive() { _keepAliveTimer = setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000); }
+function swKeepAlive() { swStopAlive(); _keepAliveTimer = setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000); }
 function swStopAlive() { clearInterval(_keepAliveTimer); _keepAliveTimer = null; }
 
 function fmtTime(ts) {

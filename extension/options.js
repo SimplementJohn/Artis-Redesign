@@ -532,7 +532,20 @@ $('opt-import').addEventListener('change', e => {
     try {
       const data     = JSON.parse(ev.target.result);
       const filtered = {};
+      const VALID_PROVIDERS = ['dai', 'gemini', 'openai', 'claude'];
       STORAGE_KEYS.forEach(k => { if (k in data) filtered[k] = data[k]; });
+      /* Validation des valeurs sensibles */
+      if ('giles_fallback_order' in filtered) {
+        if (!Array.isArray(filtered.giles_fallback_order) ||
+            !filtered.giles_fallback_order.every(p => VALID_PROVIDERS.includes(p))) {
+          delete filtered.giles_fallback_order;
+        }
+      }
+      if ('giles_fallback_enabled' in filtered) {
+        if (typeof filtered.giles_fallback_enabled !== 'object' || Array.isArray(filtered.giles_fallback_enabled)) {
+          delete filtered.giles_fallback_enabled;
+        }
+      }
       chrome.storage.local.set(filtered, () => {
         hint.textContent = 'Importé ✓ — rechargez pour appliquer';
         toast('Paramètres importés');

@@ -3,6 +3,26 @@
 > Journal des versions. Le code ne garde que `ARTIS_VERSION` (`app-content.js`) ;
 > toute nouvelle version = entrée ICI + bump `ARTIS_VERSION` + `manifest.json`.
 
+## 2.2.7 — 2026-06-17
+
+**Fix audit — 9 corrections sécurité / bugs / perf :**
+- Fix XSS : `meta.provider` et `meta.model` passent maintenant par `esc()` avant injection dans `innerHTML` (`giles.js`).
+- Fix `swKeepAlive` : `clearInterval` préalable avant tout nouveau `setInterval` → plus d'accumulation de timers si appels parallèles (`giles-bg.js`).
+- Fix model ID Claude : `claude-haiku-4-5-20251001` → `claude-haiku-4-5` (snapshot inexistant retournait erreur MODEL).
+- Fix flag `editor.dataset.gilesBtn` : posé APRÈS montage réussi dans `mountInToolbar()` au lieu de trop tôt → retentatives toolbar non bloquées.
+- Fix `dit_interval` : réglage page options maintenant lu depuis storage dans `boot()` et appliqué à `DIT_RELOAD_MS` (le réglage n'avait aucun effet avant).
+- Fix `capturePageText` : `display:none` → `visibility:hidden` pour masquer nos UI — ne déclenche plus le MutationObserver de `app-content.js`.
+- Fix import options : validation de `giles_fallback_order` (doit être un Array de providers connus) et `giles_fallback_enabled` (doit être un objet).
+- Fix `popup.js` : null-check sur `LIMITED_BTN` avant `classList.toggle` et `addEventListener` → plus de crash si l'élément absent.
+- Fix `manifest.json` : retrait `http://localhost/*` (trop large, résidu dev) + retrait `CHANGELOG.md` de `web_accessible_resources` (options.html y accède via `chrome.runtime.getURL` sans en avoir besoin).
+
+## 2.2.6 — 2026-06-17
+
+**Fix boutons sidebar natifs + popup thème + aperçu CR avant reformulation :**
+- Fix boutons sidebar Artis (icônes nav) : click ouvre `#artis-menu-popup` (workspace déplacé depuis v1.9.58 — les boutons tab-switching ne montraient rien car le popup restait fermé).
+- Popup sélecteur de thème : clic sur le bouton lune/soleil ouvre un menu 3 options (Sombre / Clair / Limité) au lieu du toggle binaire.
+- Popup aperçu CR (Reformuler) : Gilles affiche le texte reformulé dans un popup avant toute modification — 3 actions : Copier / Ajouter à la suite / Remplacer le champ.
+
 ## 2.2.5 — 2026-06-17
 
 **Fix Gilles providers — fallback fantôme + DAI verbeux :**

@@ -284,8 +284,8 @@
     b.className = 'giles-bubble ' + (role === 'user' ? 'me' : 'bot');
     let metaHtml = '';
     if (role !== 'user' && meta && meta.provider) {
-      const label = PROVIDER_LABEL[meta.provider] || meta.provider;
-      const model = meta.model ? ` · ${meta.model}` : '';
+      const label = esc(PROVIDER_LABEL[meta.provider] || meta.provider);
+      const model = meta.model ? ` · ${esc(meta.model)}` : '';
       metaHtml = `<div class="giles-bubble-meta">${label}${model}</div>`;
     }
     b.innerHTML = `${metaHtml}<div class="giles-bubble-in">${fmt(text)}</div>`;
@@ -335,11 +335,11 @@
     /* On masque temporairement nos propres UI pour ne pas polluer la capture */
     const ours = document.querySelectorAll('#giles-root, #artis-app-canvas');
     const prev = [];
-    ours.forEach(n => { prev.push(n.style.display); n.style.display = 'none'; });
+    ours.forEach(n => { prev.push(n.style.visibility); n.style.visibility = 'hidden'; });
     try {
       txt = (document.body.innerText || '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
     } catch (e) { txt = (document.body.textContent || '').trim(); }
-    ours.forEach((n, i) => { n.style.display = prev[i] || ''; });
+    ours.forEach((n, i) => { n.style.visibility = prev[i] || ''; });
     if (txt.length > PAGE_MAX) txt = txt.slice(0, PAGE_MAX) + '\n…[texte tronqué]';
     const cap = { url: sanitizeUrl(location.href), title: document.title, text: txt };
     _capCache = { key, count, ts: now, cap };

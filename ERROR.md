@@ -21,11 +21,38 @@ règle existe, la compléter.
    `background-color`.
 5. **Replier un conteneur à enfants multiples** : `max-height:0; overflow:hidden`
    (le pattern grid `0fr` ne marche qu'avec UN enfant wrapper).
+6. **Masquage temporaire d'éléments dans un content script** : utiliser `visibility:hidden`
+   (jamais `display:none`) — `display:none` modifie l'attribut `style` et déclenche le
+   MutationObserver de `app-content.js`, créant des effets de bord parasites.
+7. **innerHTML avec données externes** : toujours passer par `esc()` avant interpolation,
+   même pour des valeurs qui semblent « contrôlées » (ex: `resp.model` d'un provider) —
+   un provider externe ou une réponse malformée peut contenir du HTML.
+8. **`setInterval` keep-alive** : toujours appeler `clearInterval` avant d'en créer un nouveau
+   — sans ça, des appels parallèles accumulent des timers qui ne s'annulent jamais.
+9. **Flag de garde posé trop tôt** : ne poser `element.dataset.flag` qu'APRÈS l'opération
+   réussie (pas avant de tenter) — sinon les re-tentatives sont bloquées par le flag même
+   si l'opération a échoué.
+10. **`chrome.storage` réglages → lire dans `boot()`** : tout réglage sauvegardé dans
+    `chrome.storage.local` (ex: `dit_interval`) doit être lu dans le même `get()` de `boot()`
+    pour être appliqué. Un réglage oublié dans le `get()` reste sans effet — vérifier la liste
+    des clés à chaque ajout de nouveau paramètre.
+11. **Model ID Anthropic** : ne pas utiliser les IDs avec date de snapshot non vérifiée
+    (ex: `claude-haiku-4-5-20251001`). Vérifier l'ID exact dans la doc Anthropic ou utiliser
+    l'alias sans date (`claude-haiku-4-5`).
+12. **`http://localhost/*` dans `host_permissions`** : trop large (donne accès à tous les
+    services locaux). Utiliser le port exact si nécessaire (`http://localhost:11434/*`), sinon
+    ne pas inclure.
 
 ---
 
 ## Entrées
 
+- **2026-06-17** | Audit v2.2.7 — `capturePageText` | masquage via `display:none` déclenchait le MutationObserver de `app-content.js` sur l'attribut `style` → entrées parasites dans `pendingStyle`. **Règle 6 :** utiliser `visibility:hidden` pour masquer temporairement des éléments dans un content script.
+- **2026-06-17** | Audit v2.2.7 — XSS `meta.model` dans `addBubble` | `meta.provider`/`meta.model` interpolés dans `innerHTML` sans `esc()` — risque XSS si valeur fournie par provider externe. **Règle 7 :** tout champ externe → `esc()` avant `innerHTML`, même si la valeur semble contrôlée.
+- **2026-06-17** | Audit v2.2.7 — `swKeepAlive` timers multiples | deux appels parallèles à `askLLM` créaient deux `setInterval` sans `clearInterval` préalable = accumulation de timers keep-alive. **Règle 8 :** toujours `clearInterval` avant nouveau `setInterval`.
+- **2026-06-17** | Audit v2.2.7 — `editor.dataset.gilesBtn` posé trop tôt | flag posé avant que `mountInToolbar()` réussisse → les re-tentatives de montage de la toolbar TinyMCE étaient bloquées même si le bouton n'était pas encore dans le DOM. **Règle 9 :** poser un flag de garde APRÈS succès de l'opération.
+- **2026-06-17** | Audit v2.2.7 — `dit_interval` sans effet | réglage page options (`dit_interval`) jamais lu dans `boot()` → `DIT_RELOAD_MS` hardcodé à 60 s. **Règle 10 :** tout nouveau paramètre storage doit être ajouté à la liste de clés du `chrome.storage.local.get()` dans `boot()`.
+- **2026-06-17** | Audit v2.2.7 — boutons sidebar natifs inactifs | click sur icônes tab `#kt_aside_nav` changeait l'onglet dans `#kt_aside_workspace` (déplacé dans `#artis-menu-popup` depuis v1.9.58) mais le popup restait fermé (hover-only) → rien de visible. Fix : listener `click` sur `#kt_aside_nav` appelle `open()`.
 - **2026-06-15** | Master switch désactivé | extension « désactivée » mais thème toujours appliqué : le garde-fou bas de fichier (`get('artis_enabled') → if false return`) sautait `boot()`, donc `disableThemeSheets(true)` (à l'intérieur de boot) n'était JAMAIS atteint = code mort. **Règle :** la logique de neutralisation (`sheet.disabled`) doit tourner dans un chemin TOUJOURS exécuté — appeler `boot()` inconditionnellement et laisser boot gérer le cas off, ne pas court-circuiter avant.
 - **2026-06-15** | FOUC thème (flash noir→blanc) | en thème clair, chaque rechargement peignait sombre puis basculait clair : sombre = défaut CSS (`html:not(.artis-light)`), et la classe `artis-light` n'était ajoutée qu'APRÈS le `chrome.storage.local.get` (ASYNC) = après le premier paint. **Règle :** une décision de thème qui doit précéder le paint ne peut PAS dépendre de `chrome.storage` (async) — la lire d'un miroir `localStorage` (sync, même origine) dans un script `run_at: document_start` (`theme-init.js`) et poser la classe sur `documentElement` avant que la feuille ne peigne.
 - **2026-06-11** | Menu popup accueil | clic sur un item menu (href = URL courante + `#`) rechargeait parfois toute la page : si le handler Artis ne `preventDefault` pas à temps (race au chargement / délégation), le navigateur suit le href. **Règle :** tout conteneur de liens Artis déplacé/réinjecté doit porter une garde capture `click` qui `preventDefault` les `href="#"` / même-page+`#` (sans stopPropagation — les handlers Artis doivent continuer de tourner).

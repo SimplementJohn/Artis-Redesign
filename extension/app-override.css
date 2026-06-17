@@ -762,6 +762,63 @@ html.artis-light #artis-version-btn:hover {
 }
 #giles-aside-btn svg { width: 30px !important; height: 30px !important; min-width: 30px !important; min-height: 30px !important; flex-shrink: 0 !important; }
 
+/* ── Popup sélecteur de thème ─────────────────────────────── */
+#artis-theme-popup {
+  position: fixed !important;
+  z-index: 99999 !important;
+  background: rgba(13,13,38,0.95) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(99,102,241,0.28) !important;
+  border-radius: 14px !important;
+  box-shadow: 8px 8px 32px rgba(0,0,0,0.6) !important;
+  padding: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 140px !important;
+  animation: artis-flyout-fade 0.22s cubic-bezier(0.16,1,0.3,1) both !important;
+}
+html.artis-light #artis-theme-popup {
+  background: #fff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+}
+.artis-theme-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 9px 14px !important;
+  border-radius: 9px !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(203,213,225,0.85) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.875rem !important;
+  cursor: pointer !important;
+  transition: background 0.18s ease, color 0.18s ease !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+html.artis-light .artis-theme-option { color: #374151 !important; }
+.artis-theme-option svg { width: 18px !important; height: 18px !important; flex-shrink: 0 !important; }
+.artis-theme-option:hover {
+  background: rgba(99,102,241,0.15) !important;
+  color: #a5b4fc !important;
+}
+html.artis-light .artis-theme-option:hover {
+  background: rgba(99,102,241,0.08) !important;
+  color: #6366f1 !important;
+}
+.artis-theme-option--active {
+  background: rgba(99,102,241,0.2) !important;
+  color: #818cf8 !important;
+  font-weight: 600 !important;
+}
+html.artis-light .artis-theme-option--active {
+  background: rgba(99,102,241,0.1) !important;
+  color: #6366f1 !important;
+}
+
 /* ── Bouton VERSION ───────────────────────────────────────── */
 #artis-version-btn {
   position: relative !important;
@@ -941,6 +998,144 @@ html.artis-light .artis-cl-date { color: #94a3b8 !important; }
 .tox.tox-tinymce-inline {
   display: flex !important;
   z-index: 2147483200 !important;
+}
+
+/* ── Popup aperçu compte rendu (Reformuler) ──────────────── */
+.artis-reform-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999998 !important;
+  background: rgba(0,0,0,0.55) !important;
+  backdrop-filter: blur(3px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: artis-reform-fade-in 0.18s ease both !important;
+}
+@keyframes artis-reform-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.artis-reform-preview {
+  background: #fff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25) !important;
+  width: min(760px, 92vw) !important;
+  max-height: 85vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  animation: artis-reform-slide-in 0.22s cubic-bezier(0.16,1,0.3,1) both !important;
+  color: #111827 !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+@keyframes artis-reform-slide-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.artis-reform-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  padding: 20px 24px 14px !important;
+  flex-shrink: 0 !important;
+}
+.artis-reform-gilles-label {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  color: #6366f1 !important;
+  text-transform: uppercase !important;
+  margin-bottom: 3px !important;
+}
+.artis-reform-title {
+  font-size: 1.18rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+}
+.artis-reform-close {
+  background: none !important;
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: #6b7280 !important;
+  font-size: 13px !important;
+  flex-shrink: 0 !important;
+  transition: background 0.15s, border-color 0.15s !important;
+}
+.artis-reform-close:hover {
+  background: #f3f4f6 !important;
+  border-color: #9ca3af !important;
+}
+.artis-reform-provider {
+  margin: 0 24px 12px !important;
+  padding: 8px 12px !important;
+  background: rgba(99,102,241,0.07) !important;
+  border-left: 3px solid #6366f1 !important;
+  border-radius: 0 6px 6px 0 !important;
+  font-size: 0.8rem !important;
+  color: #6366f1 !important;
+  flex-shrink: 0 !important;
+}
+.artis-reform-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 4px 24px 16px !important;
+  font-size: 0.925rem !important;
+  line-height: 1.65 !important;
+  color: #1f2937 !important;
+}
+.artis-reform-body h1,.artis-reform-body h2,.artis-reform-body h3 {
+  font-weight: 700 !important;
+  margin: 14px 0 6px !important;
+  color: #111827 !important;
+}
+.artis-reform-body ul,.artis-reform-body ol {
+  padding-left: 20px !important;
+  margin: 6px 0 !important;
+}
+.artis-reform-body p { margin: 0 0 8px !important; }
+.artis-reform-footer {
+  display: flex !important;
+  gap: 10px !important;
+  justify-content: flex-end !important;
+  padding: 16px 24px !important;
+  border-top: 1px solid #e5e7eb !important;
+  flex-shrink: 0 !important;
+}
+.artis-reform-btn {
+  padding: 9px 18px !important;
+  border-radius: 8px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border: 1.5px solid transparent !important;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s !important;
+}
+.artis-reform-btn:active { transform: scale(0.97) !important; }
+.artis-reform-btn--secondary {
+  background: #fff !important;
+  border-color: #d1d5db !important;
+  color: #374151 !important;
+}
+.artis-reform-btn--secondary:hover {
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+.artis-reform-btn--primary {
+  background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.35) !important;
+}
+.artis-reform-btn--primary:hover {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
 }
 
 /* Bouton Reformuler Gilles — couleur indigo, survol accentué (notre bouton) */

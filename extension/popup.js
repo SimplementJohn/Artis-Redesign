@@ -14,7 +14,7 @@ let themeMode = 'light';
 function paintMode() {
   const isLimited = themeMode === 'limited';
   MODE_BTNS.forEach(b => b.classList.toggle('active', !isLimited && b.dataset.mode === themeMode));
-  LIMITED_BTN.classList.toggle('active', isLimited);
+  if (LIMITED_BTN) LIMITED_BTN.classList.toggle('active', isLimited);
 }
 
 MODE_BTNS.forEach(b => b.addEventListener('click', () => {
@@ -24,7 +24,7 @@ MODE_BTNS.forEach(b => b.addEventListener('click', () => {
   chrome.storage.local.set({ artis_theme_mode: themeMode });
 }));
 
-LIMITED_BTN.addEventListener('click', () => {
+if (LIMITED_BTN) LIMITED_BTN.addEventListener('click', () => {
   themeMode = themeMode === 'limited' ? 'light' : 'limited';
   paintMode();
   chrome.storage.local.set({ artis_theme_mode: themeMode });
